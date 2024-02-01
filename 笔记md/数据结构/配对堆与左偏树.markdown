@@ -1,0 +1,235 @@
+---
+title : 配对堆与左偏树
+date : 2021-8-22
+tags : 数据结构,ACM
+
+---
+![logo](https://img-blog.csdnimg.cn/10e6913016d94a1aaab35061d80e07f8.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA57yE5ruF,size_20,color_FFFFFF,t_70,g_se,x_16#pic_center)
+
+
+
+# 配对堆
+
+### 简介
+
+配对堆(pairing heap)，支持插入，查询/删除最小值，合并，修改等操作，跑得比较快，但不能可持久化。
+
+### 操作
+
+##### 合并
+
+直接把根节点权值较大的那个配对堆设成另一个的儿子即可。
+
+##### 插入
+
+新元素可视为一个配对堆，与原堆合并即可。
+
+##### 删除最小值(复杂)
+
+若把根节点的儿子都一个个合并到一起，复杂度会退化到O(n)
+
+Eileen保证均摊复杂度为O(logn)，我们需要把儿子从左往右两两配对。
+
+```C++
+Node* merges(Node* x) {
+  if (x == nullptr || x->xd == nullptr)
+    return x;  // 如果该树为空或他没有兄弟（即他的父亲的儿子数小于2），就直接return。
+  Node *a = x->xd, *b = a->xd;  // a：x的一个兄弟，b：x的另一个兄弟
+  x->xd = a->xd = nullptr;      // 拆散
+  return merge(merge(x, a), merges(b));  // 核心部分
+}
+```
+
+##### 减少元素的值
+
+
+
+
+# 左偏树
+
+### 简介
+
+左偏树和配对堆一样，是一种可并堆，可实现快速合并。
+
+### 定义
+
+外节点：当且仅当一个节点的左子树和右子树其中一个为空节点。
+
+点的距离：节点子树中离它最近的外接点到这个点的距离+1。
+
+我们规定空节点的距离为0，外接点距离为1。
+
+
+
+### 性质
+
+性质（1）左偏树中，任何一个节点父节点的权值都要小于等于这个节点的权值。（堆性质，若长成完全二叉树，就是一个堆）
+
+性质（2）左偏树中任意一个节点的左儿子的距离一定大于等于右儿子的距离。（左偏性质）
+
+推论（1）左偏树中任意一个节点的距离为其右儿子距离+1
+
+推论（2）n个点的左偏树，最大距离为log(n+1)-1
+
+
+
+### 操作
+
+##### Merge(核心)
+
+```c++
+int merge(int x, int y) {
+  if (!x || !y) return x | y;  // 若一个堆为空则返回另一个堆
+  if (t[x].val > t[y].val) swap(x, y);  // 取值较小的作为根
+  t[x].rs = merge(t[x].rs, y);          // 递归合并右儿子与另一个堆
+  if (t[t[x].rs].d > t[t[x].ls].d)
+    swap(t[x].ls, t[x].rs);   // 若不满足左偏性质则交换左右儿子
+  t[x].d = t[t[x].rs].d + 1;  // 更新dist
+  return x;
+}
+```
+
+
+
+##### Push
+
+单个节点可视为一个堆，合并即可。
+
+##### Pop
+
+删除根节点：合并根的左右儿子即可。
+
+##### Pop(x)
+
+删除任意节点：先将左右儿子合并，任何自底向上更新dist、不满足左偏性质时交换左右儿子，当dist无需更新时结束递归。
+
+```C++
+int& rs(int x) { return t[x].ch[t[t[x].ch[1]].d < t[t[x].ch[0]].d]; }
+
+// 有了 pushup，直接 merge 左右儿子就实现了删除节点并保持左偏性质
+int merge(int x, int y) {
+  if (!x || !y) return x | y;
+  if (t[x].val < t[y].val) swap(x, y);
+  t[rs(x) = merge(rs(x), y)].fa = x;
+  pushup(x);
+  return x;
+}
+
+void pushup(int x) {
+  if (!x) return;
+  if (t[x].d != t[rs(x)].d + 1) {
+    t[x].d = t[rs(x)].d + 1;
+    pushup(t[x].fa);
+  }
+}
+
+int pop(int x) {
+  return merge(t[x].ls, t[x].rs);
+}
+```
+
+
+
+##### 随即合并
+
+```C++
+int merge(int x, int y) {
+  if (!x || !y) return x | y;
+  if (t[y].val < t[x].val) swap(x, y);
+  if (rand() & 1)  //随机选择是否交换左右子节点
+    swap(t[x].ls, t[x].rs);
+  t[x].ls = merge(t[x].ls, t[y]);
+  return x;
+}
+```
+
+
+
+### 例题
+
+##### luoguP3377 【模板】左偏树（可并堆）
+
+```C++
+#include<bits/stdc++.h>
+#define inf 0x3f3f3f3f
+#define int long long
+#define ls tr[x].ch[0]
+#define rs tr[x].ch[1]
+
+using namespace std;
+const int maxn=1e5+7;
+const int mod=1e9+7;
+
+int read(){	int x=0,f=1;char ch=getchar();while(ch<'0'||ch>'9'){if(ch=='-') f=f*-1;ch=getchar();}while(ch>='0'&&ch<='9'){x=x*10+ch-'0';ch=getchar();}return x*f;}
+
+struct X{
+	int dis,val,ch[2],fa;
+}tr[maxn];
+
+int get(int x){
+	return tr[x].fa==x?x:tr[x].fa=get(tr[x].fa);
+}
+
+int merge(int x,int y){
+	if(!x||!y) return x+y;
+	if((tr[x].val>tr[y].val)||(tr[x].val==tr[y].val&&x>y)) swap(x,y);
+	rs=merge(rs,y);
+	if(tr[ls].dis<tr[rs].dis) swap(ls,rs);
+	tr[ls].fa=tr[rs].fa=tr[x].fa=x;
+	tr[x].dis=tr[rs].dis+1;
+	return x;
+}
+
+inline void pop(int x){
+	tr[x].val=-1;
+	tr[ls].fa=ls;
+	tr[rs].fa=rs;
+	tr[x].fa = merge(ls,rs);
+}
+
+int n,m;
+
+signed main(){
+	ios::sync_with_stdio(0);
+	cin.tie(0);cout.tie(0);
+	cin>>n>>m;
+	tr[0].dis=0;
+	int op,x,y;
+	for(int i=1;i<=n;i++){
+		cin>>tr[i].val;
+		tr[i].fa=i;
+	}
+	for(int i=1;i<=m;i++){
+		cin>>op;
+		if(op==1){
+			cin>>x>>y;
+			if(tr[x].val==-1||tr[y].val==-1) continue;
+			int f1=get(x),f2=get(y);
+			if(f1!=f2){
+				tr[f1].fa=tr[f2].fa=merge(f1,f2);
+			}
+		}else{
+			cin>>x;
+			if(tr[x].val==-1){
+				cout<<"-1\n";
+			}else{
+				cout<<tr[get(x)].val<<"\n";
+				pop(get(x));
+			}
+		}
+	}
+	return 0;
+}
+```
+
+
+
+### 参考资料
+
+OI-wiki
+
+https://blog.csdn.net/wang3312362136/article/details/80615874
+
+https://baike.baidu.com/item/%E9%85%8D%E5%AF%B9%E5%A0%86/22690562
+
+https://www.cnblogs.com/pks-t/p/10326682.html

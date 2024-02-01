@@ -1,0 +1,285 @@
+---
+title : 树状数组
+tags ： 数据结构
+date : 2021-7-22
+author : LINNO
+---
+![在这里插入图片描述](https://img-blog.csdnimg.cn/48c75312a59a4f32ae4acfcf3d82ee45.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA57yE5ruF,size_20,color_FFFFFF,t_70,g_se,x_16#pic_center)
+
+
+### 核心操作
+
+```C++
+int lowbit(x){return x&(-x);}
+//你也可以写成下述形式
+#define lowbit(x) (x&-x)
+```
+
+意义在于取出x最低为的1。
+
+
+
+## 一维树状数组
+
+### 单点修改+区间查询
+
+```c++
+void update(int x,int y){ //将x点加上y
+    for(int i=x;i<=n;i+=lowbit(i))
+        c[i]+=y;
+}
+
+int getsum(int x){ //计算前x个数之和
+    int ans=0;
+    for(int i=x;i;i-=lowbit(i))
+        ans+=c[i];
+    return ans;
+}
+```
+
+
+
+### 区间修改+单点查询
+
+通过差分的思想，可以把这个问题转化为前一个。
+
+```c++
+void add(int p,int x){ //给后l位加上x，再给后r+1位减去x，就完成了[l,r]的区间修改操作了。
+    while(p<=n){
+        sum[p]+=x;
+        p+=lowbit(p);
+    }
+}
+int ask(int p){ //单点查询
+    int res=0;
+    while(p){
+        res+=sum[p];
+        p-=lowbit(p);
+    }
+}
+```
+
+
+
+### 区间修改+区间查询
+
+差分数组上第i个位置对于前i个数都有影响，因此不难推出前i个数的和。
+
+```C++
+void add(ll p,ll x){
+    for(int i=p;i<=n;i+=lowbit(i)){
+        sum1[i]+=x,sum2[i]+=x*p
+    }
+} //#define range_add(l,r,x) add(l,x),add(r+1,-x)
+
+ll ask(ll p){
+    ll res=0;
+    for(int i=p;i;i-=lowbit(i)){
+        res+=(p+1)*sum1[i]-sum2[i];
+    }
+    return res;
+}//#define range_ask(l,r) ask(r)-ask(l-1)
+```
+
+
+
+## 二维树状数组
+
+### 单点修改+区间查询
+
+```C++
+void add(int x,int y,int z){
+    int tmp=y;
+    while(x<=n){
+        y=tmp;
+        while(y<=n)
+            tree[x][y]+=z,y+=lowbit(y);
+        x+=lowbit(x);
+    }
+}
+void ask(int x,int y){
+    int res=0,tmp=y;
+    while(x){
+        y=tmp;
+        while(y) res+=tree[x][y],y-=lowbit(y);
+        x-=lowbit(x);
+    }
+}
+```
+
+
+
+### 区间修改+单点查询
+
+```C++
+void add(int x,int y,int z){
+    int tmp=y;
+    while(x<=n){
+        y=tmp;
+        while(y<=n)
+            tree[x][y]+=z,y+=lowbit(y);
+        x+=lowbit(x);
+    }
+}
+void range_add(int xa,int ya,int xb,int yb,int z){
+    add(xa,ya,z);
+    add(xa,yb+1,-z);
+    add(xb+1,ya,-z);
+    add(xb+1,yb+1,z);
+}
+void ask(int x,int y){
+    int res=0,tmp=y;
+    while(x){
+        y=tmp;
+        while(y) res+=tree[x][y],y-=lowbit(y);
+    	x-=lowbit(x);
+    }
+}
+```
+
+
+
+### 区间修改+区间查询
+
+需要分别开四个树状数组维护$d[i][j],d[i][j]*i,d[i][j]*j,d[i][j]*i*j$
+
+LibreOJ 135的模板题代码如下：
+
+```C++
+#include<stdio.h>
+#define lowbit(x) (x&-x)
+#define isdigit(ch) (ch>='0'&&ch<='9')
+using namespace std;
+typedef long long ll;
+const int maxn=2050;
+
+ll n,m,op,a,b,c,d,z,x;
+ll t1[maxn][maxn],t2[maxn][maxn],t3[maxn][maxn],t4[maxn][maxn];
+
+inline void read(ll &data){
+	ll x=0,f=1;char ch=getchar();
+	while(!isdigit(ch)){
+		if(ch=='-') f=f*-1;
+		ch=getchar();
+	}
+	while(isdigit(ch)){
+		x=x*10+ch-'0';
+		ch=getchar();
+	}
+	data=x*f;
+}
+
+void add(ll x,ll y,ll z){
+	for(int i=x;i<=n;i+=lowbit(i)){
+		for(int j=y;j<=m;j+=lowbit(j)){
+			t1[i][j]+=z;
+			t2[i][j]+=z*x;
+			t3[i][j]+=z*y;
+			t4[i][j]+=z*x*y;
+		}
+	}
+}
+
+void range_add(ll xa,ll ya,ll xb,ll yb,ll z){
+	add(xa,ya,z);
+	add(xa,yb+1,-z);
+	add(xb+1,ya,-z);
+	add(xb+1,yb+1,z);
+}
+
+ll ask(ll x,ll y){
+	ll res=0;
+	for(int i=x;i;i-=lowbit(i)){
+		for(int j=y;j;j-=lowbit(j)){
+			res+=(x+1)*(y+1)*t1[i][j]-(y+1)*t2[i][j]-(x+1)*t3[i][j]+t4[i][j];
+		}
+	}
+	return res;
+}
+
+ll range_ask(ll xa,ll ya,ll xb,ll yb){
+	return ask(xb,yb)-ask(xb,ya-1)-ask(xa-1,yb)+ask(xa-1,ya-1);
+}
+
+int main(){
+	read(n);read(m);
+	while(scanf("%lld",&op)!=EOF){
+		if(op==1){
+			read(a);read(b);read(c);read(d);read(x);
+			range_add(a,b,c,d,x);
+		}
+		if(op==2){
+			read(a);read(b);read(c);read(d);
+			printf("%lld\n",range_ask(a,b,c,d));
+		}
+	}
+	return 0;
+}
+```
+
+不过这个要开O2才能AC,不知道有没有大佬能教我优化一下。
+
+
+
+### 树状数组求逆序对
+
+离散化之后，获得每个数的相对大小。对于每一个数的相对位置，插入1到树状数组中，然后查询这个位置即以前的和，那么这个值就是前面比他小的数，用i-query[rank[i]]就可以表示出前面有多少数比他大了。
+
+```C++
+#include<bits/stdc++.h>
+using namespace std;
+int tree[500010],rank[500010],n;
+long long ans;
+struct point{
+	int num,val;
+}a[500010];
+inline bool cmp(point q,point w){
+	if(q.val==w.val) return q.num<w.num;
+	return q.val<w.val;
+}
+inline void insert(int p,int d){
+	for(;p<=n;p+=p&-p) tree[p]+=d;
+}
+inline int query(int p){
+	int sum=0;
+	for(;p;p-=p&-p) sum+=tree[p];
+	return sum;
+}
+signed main(){
+	scanf("%d",&n);
+	for(int i=1;i<=n;i++){
+		scanf("%d",&a[i].val);
+		a[i].num=i;
+	}
+	sort(a+1,a+1+n,cmp);
+	for(int i=1;i<=n;i++) rank[a[i].num]=i;
+	for(int i=1;i<=n;i++){
+		insert(rank[i],1);
+		ans+=i-query(rank[i]);
+	}
+	printf("%lld",ans);
+	return 0;
+}
+```
+
+
+
+
+
+### 其他模板完整代码
+
+[#130. 树状数组 1 ：单点修改，区间查询](https://loj.ac/p/130)：https://loj.ac/s/1195387
+
+[#131. 树状数组 2 ：区间修改，单点查询](https://loj.ac/p/131)：https://loj.ac/s/1195421
+
+[#132. 树状数组 3 ：区间修改，区间查询](https://loj.ac/p/132)：https://loj.ac/s/1195446
+
+[#133. 二维树状数组 1：单点修改，区间查询](https://loj.ac/p/133)：https://loj.ac/s/1195470
+
+[#134. 二维树状数组 2：区间修改，单点查询](https://loj.ac/p/134)：https://loj.ac/s/1195493	
+
+### 参考资料
+
+https://blog.csdn.net/bestsort/article/details/80796531
+
+https://blog.csdn.net/m0_38033475/article/details/80330157

@@ -1,0 +1,281 @@
+---
+title :  树Hash
+date ： 2021-10-6
+tags : ACM,图论
+author : Linno
+
+---
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/77d479b47dea40acb764064af0e097b7.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA57yE5ruF,size_20,color_FFFFFF,t_70,g_se,x_16#pic_center)
+
+
+# 树哈希
+
+
+
+### 应用
+
+判断树是否同构
+
+
+
+### 思想
+
+判断无根树同构的时候，可以比较重心为根的Hash值或者比较每个点为根的Hash值。
+
+
+
+### 树哈希的表示方法
+
+$f_x=1+\sum_{y\in son_x}f_y×prime(size_y)$
+
+
+
+##### [NOIP2018 普及组] 对称二叉树
+
+题目链接：https://www.luogu.com.cn/problem/P5018
+
+```C++
+#include<bits/stdc++.h>
+#define int long long
+#define V1 (999999751)
+#define V2 (299999827)
+#define V3 (100000007)
+#define md (89999794200117649)
+#define mdd (999999786000011449)
+using namespace std;
+const int maxn=1e6+7;
+
+int n,ans,val[maxn],rs[maxn],ls[maxn];
+int he[maxn],hal[maxn],Hal[maxn],har[maxn],Har[maxn];
+
+void dfs(int x,int fa){
+	if(ls[x]>0) dfs(ls[x],x);
+	if(rs[x]>0) dfs(rs[x],x);
+	he[x]=he[ls[x]]+he[rs[x]]+1;
+	if(he[ls[x]]==he[rs[x]]&&hal[ls[x]]==har[rs[x]]&&Hal[ls[x]]==Har[rs[x]]){
+		ans=max(ans,he[x]);
+	}
+	hal[x]=hal[ls[x]]*V1+val[x]*V2+hal[rs[x]]*V3;
+	Hal[x]=Hal[ls[x]]*V1+val[x]*V2+Hal[rs[x]]*V3;
+	hal[x]%=md;
+	Hal[x]%=mdd;
+	har[x]=har[rs[x]]*V1+val[x]*V2+har[ls[x]]*V3;
+	Har[x]=Har[rs[x]]*V1+val[x]*V2+Har[ls[x]]*V3;
+	har[x]%=md;
+	Har[x]%=mdd;
+}
+
+signed main(){
+	cin>>n;
+	for(int i=1;i<=n;i++) cin>>val[i];
+	for(int i=1;i<=n;i++){
+		cin>>ls[i]>>rs[i];
+	}
+	dfs(1,0);
+	cout<<ans;
+	return 0;
+}
+```
+
+
+
+##### 【模板】树同构
+
+题目链接：https://www.luogu.com.cn/problem/P5043
+
+判断无根树同构，通过两遍dfs树形dp，求出每个点为根时的Hash值，排序后比较即可。
+
+```C++
+#include<bits/stdc++.h>
+#define int long long
+using namespace std;
+const int maxn=2e5+7;
+const int mod=1e9+7;
+const int N=55;
+
+bool is_pri[maxn];
+int pri[maxn];
+int sz[N],f[N],g[N];
+int n,m;
+vector<int>hs[N];
+vector<int>G[N];
+
+void get_pri(int N){
+	int cnt=0;
+	memset(is_pri,1,sizeof(is_pri));
+	for(int i=2;i<N;i++){
+		if(is_pri[i]) pri[++cnt]=i;
+		for(int j=1;j<=cnt&&pri[j]*i<=N;j++){
+			is_pri[i*pri[j]]=0;
+			if(i%pri[j]==0) break;
+		}
+	}
+}
+
+void dfs1(int x,int fa){
+	sz[x]=f[x]=1;
+	for(int i=0;i<G[x].size();i++){
+		int to=G[x][i];
+		if(to==fa) continue;
+		dfs1(to,x);
+		f[x]+=f[to]*pri[sz[to]];
+		sz[x]+=sz[to];
+	}
+}
+
+void dfs2(int x,int fa,int fa_f){
+	g[x]=f[x]+fa_f*pri[n-sz[x]];
+	fa_f*=pri[n-sz[x]];
+	for(int i=0;i<G[x].size();i++){
+		int to=G[x][i];
+		if(to==fa) continue;
+		dfs2(to,x,fa_f+f[x]-f[to]*pri[sz[to]]);
+	}
+}
+
+bool Equal(int x,int y){
+	if(hs[x].size()!=hs[y].size()) return false;
+	for(int i=0;i<hs[x].size();i++){
+		if(hs[x][i]!=hs[y][i]) return false;
+	}
+	return true;
+}
+
+signed main(){
+	ios::sync_with_stdio(0);
+	cin.tie(0);cout.tie(0);
+	get_pri(10000);
+	cin>>m;
+	int fa;
+	for(int i=1;i<=m;i++){
+		cin>>n;
+		for(int j=1;j<=n;j++) G[j].clear();
+		for(int j=1;j<=n;j++){
+			cin>>fa;
+			if(fa){
+				G[j].push_back(fa);
+				G[fa].push_back(j);
+			}
+		}
+		dfs1(1,0);
+		dfs2(1,0,0);
+		for(int j=1;j<=n;j++) hs[i].push_back(g[j]);
+		sort(hs[i].begin(),hs[i].end()); 
+	}
+	puts("1");
+	for(int i=2;i<=m;i++){
+		for(int j=1;j<=i;j++){
+			if(Equal(i,j)){
+				printf("%d\n",j);
+				break;
+			}
+		}
+	}
+	return 0;
+}
+```
+
+
+
+#####  [JSOI2016]独特的树叶
+
+题目链接https://www.luogu.com.cn/problem/P4323
+
+```C++
+#include<bits/stdc++.h>
+#define inf 0x3f3f3f3f
+#define int long long
+using namespace std;
+const int N=100010;
+bool is_pri[2000010];
+int pri[N];
+int in[N],near[N];
+
+void get_pri(int MX){
+	int cnt=0;
+	memset(is_pri,1,sizeof(is_pri));
+	for(int i=2;i<MX;i++){
+		if(is_pri[i]) pri[++cnt]=i;
+		for(int j=1;j<=cnt&&pri[j]*i<MX;j++){
+			is_pri[i*pri[j]]=0;
+			if(i%pri[j]==0) break;
+		}
+	}
+}
+
+struct Edge{
+	int nxt,to;
+};
+
+struct Tree{
+	int f[N],g[N],sz[N],head[N];
+	int n,tot;
+	Edge edge[N<<1];
+	void init(int nn){
+		n=nn;
+		tot=1;
+		memset(head,0,sizeof(head));
+	}
+	void addedge(int u,int v){
+		edge[tot].to=v;
+		edge[tot].nxt=head[u];
+		head[u]=tot++;
+	}
+	void dfs1(int x,int fa){
+		sz[x]=f[x]=1;
+		for(int i=head[x];i;i=edge[i].nxt){
+			int y=edge[i].to;
+			if(y==fa) continue;
+			dfs1(y,x);
+			f[x]+=f[y]*pri[sz[y]];
+			sz[x]+=sz[y];
+		}
+	}
+	void dfs2(int x,int fa,int fa_f){
+		g[x]=f[x]+fa_f*pri[n-sz[x]];
+		fa_f*=pri[n-sz[x]];
+		for(int i=head[x];i;i=edge[i].nxt){
+			int y=edge[i].to;
+			if(y==fa) continue;
+			dfs2(y,x,fa_f+f[x]-f[y]*pri[sz[y]]);
+		}
+	}
+}tr1,tr2;
+
+signed main(){
+	ios::sync_with_stdio(0);
+	cin.tie(0);cout.tie(0);
+	get_pri(2000000);
+	int n;cin>>n;
+	tr1.init(n);
+	tr2.init(n+1);
+	memset(in,0,sizeof(in));
+	unordered_set<int>se;
+	for(int i=0,u,v;i<n-1;i++){
+		cin>>u>>v;
+		tr1.addedge(u,v);
+		tr1.addedge(v,u);
+	}
+	for(int i=0,u,v;i<n;i++){
+		cin>>u>>v;
+		tr2.addedge(u,v);
+		tr2.addedge(v,u);
+		++in[u],++in[v];
+		near[u]=v,near[v]=u;
+	}
+	tr1.dfs1(1,0);
+	tr1.dfs2(1,0,0);
+	for(int i=1;i<=n;i++) se.insert(tr1.g[i]);
+	tr2.dfs1(1,0);
+	tr2.dfs2(1,0,0);
+	for(int i=1;i<=n+1;i++){
+		if(in[i]!=1) continue;
+		if(se.count(tr2.g[near[i]]-2)){
+			printf("%d\n",i);
+			break;
+		}
+	}
+	return 0;
+}
+```

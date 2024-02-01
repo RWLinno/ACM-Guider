@@ -1,0 +1,428 @@
+---
+title : 莫队算法
+tags : ACM,暴力
+date : 2021-10-30
+author : Linno
+
+---
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/34d07b8b0b2f4b94854d666360e54652.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA57yE5ruF,size_20,color_FFFFFF,t_70,g_se,x_16#pic_center)
+
+
+### 普通莫队
+
+常用操作：分块/排序/卡常/离散化等,直接上板子。
+
+##### luoguP2709 小B的询问
+
+```C++
+#include<bits/stdc++.h>
+#define inf 0x3f3f3f3f
+//#define int long long
+using namespace std;
+const int N=5e4+7;
+
+//int read(){	int x=0,f=1;char ch=getchar();while(ch<'0'||ch>'9'){if(ch=='-') f=f*-1;ch=getchar();}while(ch>='0'&&ch<='9'){x=x*10+ch-'0';ch=getchar();}return x*f;}
+
+struct X{
+	int l,r,id;
+}q[N];
+
+int n,m,k,cnt[N],a[N],bel[N],ans[N],nowans,block;
+
+bool cmp(X a,X b){
+	if(bel[a.l]!=bel[b.l]) return a.l<b.l;
+	return a.r<b.r;
+}
+
+void add(int x){
+	nowans-=cnt[a[x]]*cnt[a[x]];
+	++cnt[a[x]];
+	nowans+=cnt[a[x]]*cnt[a[x]];
+}
+
+void del(int x){
+	nowans-=cnt[a[x]]*cnt[a[x]];
+	--cnt[a[x]];
+	nowans+=cnt[a[x]]*cnt[a[x]];
+}
+
+signed main(){
+	cin>>n>>m>>k;
+	block=sqrt(n);
+	for(int i=1;i<=n;i++){
+		cin>>a[i];
+		bel[i]=i/block;
+	}
+	for(int i=1;i<=m;i++){
+		cin>>q[i].l>>q[i].r;
+		q[i].id=i;
+	}
+	sort(q+1,q+1+m,cmp);
+	int L=0,R=-1;
+	nowans=0; 
+	for(int i=1;i<=m;i++){
+		while(L>q[i].l) add(--L);
+		while(R<q[i].r) add(++R);
+		while(L<q[i].l) del(L++);
+		while(R>q[i].r) del(R--);
+		ans[q[i].id]=nowans;
+	}
+	for(int i=1;i<=m;i++) cout<<ans[i]<<"\n";
+	return 0;
+}
+```
+
+
+
+### 带修改莫队
+
+莫队不能处理强制在线的题目，但是对于允许离线的修改区间查询来说，依然能够解决。给一个时间戳来记录修改操作的编号，**而查询操作的时间戳沿用最近一次修改操作的时间戳。**对于每次修改处理，只要再跑一次L,R指针就可以了。
+
+因为加了一个时间的维度，我们需要重新分块使得复杂度达到最优，块的大小设为$\sqrt[3]{n^2}$，而不是$\sqrt n$，否则复杂度会卡成$n^2$。
+
+##### luoguP1903 [国家集训队]数颜色 / 维护队列
+
+```C++
+#include<bits/stdc++.h>
+//#define int long long
+using namespace std;
+const int maxn=2e6+7;
+const int mod=1e9+7;
+
+inline int read(){	int x=0,f=1;char ch=getchar();while(ch<'0'||ch>'9'){if(ch=='-') f=f*-1;ch=getchar();}while(ch>='0'&&ch<='9'){x=x*10+ch-'0';ch=getchar();}return x*f;}
+
+struct Q{
+	int l,r,id,t;
+}q[maxn];
+
+struct Change{
+	int pos,val;
+}C[maxn];
+
+int n,m,bl,idx,nowans,tot;
+int a[maxn],cnt[maxn],ans[maxn];
+int L=1,R=0,now=0;
+char op[5];
+
+bool cmp(Q a,Q b){
+	if(a.l/bl!=b.l/bl) return a.l<b.l; //相同桶按右端点小 
+	if(a.r/bl!=b.r/bl) return a.r<b.r;
+	return a.t<b.t; //左端点按桶 
+}
+
+inline void add(int val){	if(++cnt[val]==1) nowans++;}
+
+inline void del(int val){	if(--cnt[val]==0) nowans--;}
+
+void work(int now,int i){
+	if(q[i].l<=C[now].pos&&C[now].pos<=q[i].r){
+		if(--cnt[a[C[now].pos]]==0) nowans--;
+		if(++cnt[C[now].val]==1) nowans++;
+	}
+	a[C[now].pos]=C[now].val;
+}
+
+inline void modify(int i){
+	while(now<q[i].t){
+		now++;
+		if(q[i].l<=C[now].pos&&C[now].pos<=q[i].r){
+			del(a[C[now].pos]);
+			add(C[now].val);
+		}
+		swap(a[C[now].pos],C[now].val);
+	}
+	while(now>q[i].t){
+		if(q[i].l<=C[now].pos&&C[now].pos<=q[i].r){
+			del(a[C[now].pos]);
+			add(C[now].val);
+		}
+		swap(a[C[now].pos],C[now].val);
+		now--;
+	}
+}
+
+signed main(){
+	n=read();
+	m=read();
+	bl=pow(n,0.666);
+	for(int i=1;i<=n;i++){
+		a[i]=read();
+	}
+	for(int i=1;i<=m;i++){
+		scanf("%s",op);
+		if(op[0]=='R'){
+			C[++idx].pos=read();
+			C[idx].val=read();
+		}
+		if(op[0]=='Q'){
+			q[++tot].l=read();
+			q[tot].r=read();
+			q[tot].id=tot;
+			q[tot].t=idx;
+		}
+	}
+	sort(q+1,q+1+tot,cmp);
+	for(int i=1;i<=tot;i++){
+		while(L<q[i].l) del(a[L++]);
+		while(R<q[i].r) add(a[++R]);
+		while(L>q[i].l) add(a[--L]);
+		while(R>q[i].r) del(a[R--]);
+		if(now!=q[i].t) modify(i);
+		ans[q[i].id]=nowans;
+	}
+	for(int i=1;i<=tot;i++){
+		printf("%lld\n",ans[i]);
+	}
+	return 0;
+}
+```
+
+
+
+### 树上莫队
+
+在原树上跑一遍dfs序，那么一个子树上的点就是一个连续的区间。
+
+如果跑一边欧拉序，那么一条路径上经过的所有点就在一个连续的区间，并且额外加上他们的LCA。
+
+##### SP10707 COT2 - Count on a tree II
+
+```C++
+#include <cstdio>
+#include <cstring>
+#include <cmath>
+#include <algorithm>
+using namespace std;
+#define maxn 200200
+#define isdigit(x) ((x) >= '0' && (x) <= '9')
+inline int read() {
+	int res = 0;
+	char c = getchar();
+	while(!isdigit(c)) c = getchar();
+	while(isdigit(c)) res = (res << 1) + (res << 3) + (c ^ 48), c = getchar();
+	return res;
+}
+int aa[maxn], cnt[maxn], first[maxn], last[maxn], ans[maxn], belong[maxn], inp[maxn], vis[maxn], ncnt, l = 1, r, now, size, bnum; //莫队相关
+int ord[maxn], val[maxn], head[maxn], depth[maxn], fa[maxn][30], ecnt;
+int n, m;
+struct edge {
+	int to, next;
+} e[maxn];
+void adde(int u, int v) {
+	e[++ecnt] = (edge){v, head[u]};
+	head[u] = ecnt;
+	e[++ecnt] = (edge){u, head[v]};
+	head[v] = ecnt;
+}
+void dfs(int x) {
+	ord[++ncnt] = x;
+	first[x] = ncnt;
+	for(int k = head[x]; k; k = e[k].next) {
+		int to = e[k].to;
+		if(to == fa[x][0]) continue;
+		depth[to] = depth[x] + 1;
+		fa[to][0] = x;
+		for(int i = 1; (1 << i) <= depth[to]; ++i) fa[to][i] = fa[fa[to][i - 1]][i - 1];
+		dfs(to);
+	}
+	ord[++ncnt] = x;
+	last[x] = ncnt;
+}
+int getlca(int u, int v) {
+	if(depth[u] < depth[v]) swap(u, v);
+	for(int i = 20; i + 1; --i) 
+		if(depth[u] - (1 << i) >= depth[v]) u = fa[u][i];
+	if(u == v) return u;
+	for(int i = 20; i + 1; --i)
+		if(fa[u][i] != fa[v][i]) u = fa[u][i], v = fa[v][i];
+	return fa[u][0];
+}
+struct query {
+	int l, r, lca, id;
+} q[maxn];
+int cmp(query a, query b) {
+	return (belong[a.l] ^ belong[b.l]) ? (belong[a.l] < belong[b.l]) : ((belong[a.l] & 1) ? a.r < b.r : a.r > b.r);
+}
+void work(int pos) {
+	vis[pos] ? now -= !--cnt[val[pos]] : now += !cnt[val[pos]]++;
+	vis[pos] ^= 1;
+}
+int main() {
+	n = read(); m = read();
+	for(int i = 1; i <= n; ++i) 
+		val[i] = inp[i] = read();
+	sort(inp + 1, inp + n + 1);
+	int tot = unique(inp + 1, inp + n + 1) - inp - 1;
+	for(int i = 1; i <= n; ++i)
+		val[i] = lower_bound(inp + 1, inp + tot + 1, val[i]) - inp;
+	for(int i = 1; i < n; ++i) adde(read(), read());
+	depth[1] = 1;
+	dfs(1);
+	size = sqrt(ncnt), bnum = ceil((double) ncnt / size);
+	for(int i = 1; i <= bnum; ++i)
+		for(int j = size * (i - 1) + 1; j <= i * size; ++j) belong[j] = i;
+	for(int i = 1; i <= m; ++i) {
+		int L = read(), R = read(), lca = getlca(L, R);
+		if(first[L] > first[R]) swap(L, R);
+		if(L == lca) {
+			q[i].l = first[L];
+			q[i].r = first[R];
+		}
+		else {
+			q[i].l = last[L];
+			q[i].r = first[R];
+			q[i].lca = lca;
+		}
+		q[i].id = i;
+	}
+	sort(q + 1, q + m + 1, cmp);
+	for(int i = 1; i <= m; ++i) {
+		int ql = q[i].l, qr = q[i].r, lca = q[i].lca;
+		while(l < ql) work(ord[l++]);
+		while(l > ql) work(ord[--l]);
+		while(r < qr) work(ord[++r]);
+		while(r > qr) work(ord[r--]);
+		if(lca) work(lca);
+		ans[q[i].id] = now;
+		if(lca) work(lca);
+	}
+	for(int i = 1; i <= m; ++i) printf("%d\n", ans[i]);
+	return 0;
+}
+```
+
+
+
+### 回滚莫队
+
+##### 适用范围
+
+询问离线、不带修改
+
+区间伸长时易维护信息，区间缩短时不易维护。
+
+##### 只加不减的回滚莫队
+
+（1）对原序列进行分块，并对询问按照如下的方式排序：**以左端点所在的块升序为第一关键字，以右端点升序为第二关键字**
+
+（2）对于处理所有左端点在块TT内的询问，我们先将莫队区间左端点初始化为R[T]+1，右端点初始化为R[T]，这是一个空区间
+
+（3）对于左右端点在同一个块中的询问，我们直接暴力扫描回答即可。
+
+（4）对于左右端点不在同一个块中的所有询问，由于其右端点升序，我们对右端点只做加点操作，总共最多加点n次
+
+（5）对于左右端点不在同一个块中的所有询问，其左端点是可能乱序的，我们每一次从R[T]+1的位置出发，只做加点操作，到达询问位置即可，每一个询问最多加√n次。回答完询问后，**我们撤销本次移动左端点的所有改动，使左端点回到R[T]+1的位置**
+
+（6）按照相同的方式处理下一块
+
+##### 只减不加的回滚莫队
+
+以左端点所在的块升序为第一关键字，右端点降序为第二关键字
+
+回答完询问后，撤销本次移动左端点的所有改动，使左端点回到L[T]的位置。
+
+##### AT1219 歴史の研究
+
+```C++
+#include <bits/stdc++.h>
+#define int long long
+using namespace std;
+const int N = 1e5+20 , SIZE = 1020;
+int n,m,size,T,raw[N],val[N],t,cnt[N],cnt_[N];
+int bel[N],L[SIZE],R[SIZE];
+long long ans[N],Max,a[N];
+struct query{int l,r,id;}q[N];
+
+inline void discrete(){ //离散化 
+    sort(raw+1,raw+t+1);
+    t=unique(raw+1,raw+t+1)-(raw+1);
+    for (int i=1;i<=n;i++) val[i]=lower_bound(raw+1,raw+t+1,a[i])-raw;
+}
+
+inline void setblocks(){ //分块 
+    size=sqrt(n),T=n/size;
+    for (int i=1;i<=T;i++){
+        if (i*size>n) break;
+        L[i] = (i-1) * size + 1;
+        R[i] = i * size;
+    }
+    if (R[T]<n) T++,L[T]=R[T-1]+1,R[T]=n;
+    for (int i=1;i<=T;i++)
+        for (int j=L[i];j<=R[i];j++)
+            bel[j]=i;
+}
+
+inline bool cmp(query p1,query p2){
+    if (bel[p1.l]!=bel[p2.l])
+        return bel[p1.l]<bel[p2.l];
+    else return p1.r<p2.r;
+}
+// 加点
+inline void insert(int p,long long &Maxval)
+{
+    cnt[val[p]]++;
+    Maxval = max( Maxval ,cnt[val[p]] * a[p] );
+}
+// 撤销
+inline void resume(int p)
+{
+    cnt[val[p]]--;
+}
+
+inline void CaptainMo(){
+    sort(q+1,q+m+1,cmp);
+    int l=1,r=0,lastblock=0;
+    for (int i=1;i<=m;i++){ 
+        if (bel[q[i].l]==bel[q[i].r]){ // 处理同一块中的询问
+            for (int j=q[i].l;j<=q[i].r;j++) cnt_[val[j]]++;
+            int temp=0;
+            for (int j=q[i].l;j<=q[i].r;j++) 
+                temp = max( temp ,cnt_[val[j]] * a[j] );
+            for (int j=q[i].l;j<=q[i].r;j++) cnt_[val[j]]--;
+            ans[ q[i].id ] = temp; 
+            continue; 
+        }
+        // 如果移动到了一个新的块，就先把左右端点初始化
+        if (lastblock!=bel[q[i].l])
+        {
+            while ( r > R[bel[q[i].l]] ) resume(r--);
+            while ( l < R[bel[q[i].l]]+1 ) resume(l++);
+            Max = 0 , lastblock = bel[q[i].l];
+        }
+        // 单调地移动右端点
+        while (r<q[i].r) insert(++r,Max);
+        // 移动左端点回答询问
+        int temp = Max; int  l_ = l;
+        while (l_>q[i].l) insert(--l_,temp);
+        // 回滚
+        while (l_< l) resume(l_++);
+        ans[ q[i].id ] = temp;
+    }
+}
+signed main(){
+    cin>>n>>m;
+    for(int i=1;i<=n;i++){
+    	cin>>a[i];
+    	raw[++t]=a[i];
+	}
+	for(int i=1;i<=m;i++){
+		cin>>q[i].l>>q[i].r;
+		q[i].id=i;
+	}
+    discrete();
+    setblocks();
+    CaptainMo();
+    for (int i=1;i<=m;i++)
+        printf("%lld\n",ans[i]);
+    return 0;
+}
+```
+
+
+
+### 参考资料
+
+https://www.cnblogs.com/Parsnip/p/10969989.html
+
+https://www.cnblogs.com/WAMonster/p/10118934.html

@@ -1,0 +1,259 @@
+---
+title : 拓扑排序与关键路径
+date : 2021-8-15
+tags : ACM,图论
+author : Linno
+---
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/5d23b6cdd04e4d1795bc6791e79cf2f2.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA57yE5ruF,size_20,color_FFFFFF,t_70,g_se,x_16#pic_center)
+
+
+### 拓扑排序
+
+对一个有向无环图G中所有顶点排成一个序列，使得图中任意一对顶点u和v,若边(u,v)属于E(G)，那么u再线性序列中出现在v之前。这样的线性序列称为满足拓扑排序（Topological Order）的序列，简称拓扑序列。简单的说，由某个集合上的一个偏序得到该集合上的一个全序，这个操作称之为拓扑排序。
+
+##### 实现方法
+
+```C++
+//BFS：寻找入度为0的点，把这个点加入队列，在队列中对邻边进行删边操作，并反复这个操作直到所有点都被遍历。
+Topological_sort(G){
+    统计图G中每个点的入度(可计算重边，但不可计算自环），记为degree[i]
+    初始化queue和result为空的队列，并将所有degree为0的点加入queue
+    while (!queue.empty()){
+        u = queue.pop() // 队首
+        result.push(u)
+        for e 是u的出边（若上面计算了重边，这里也要算，与上面一致）
+        v是e的指向的点
+        degree[v]--
+        if (degree[v] == 0) queue.push(v)
+    }
+	return result
+}
+```
+
+
+
+```cpp
+//记忆化搜索：在每一个入度为0的点进行删边，然后往下搜索所有入度为0的点，直到遍历完所有节点。
+calculate(u){
+    if (u 已经搜索过) return table[u]
+    ans = -inf
+    for (v 是u的出边指向的点)
+    ans = max(ans, value[u] + calculate(v))
+    标记u已经搜索过
+    table[u] = ans
+    return ans
+}
+for (i 是G的所有节点)
+result = max(result, calculate(i))
+print(result)
+```
+
+
+
+##### luoguP1137 旅行计划
+
+在一个DAG中问i为终点能最多经过多少个节点。
+
+```cpp
+#include<bits/stdc++.h>
+using namespace std;
+const int N=1e5+7;
+
+int n,m,u,v,ans[N],ru[N],vis[N];
+queue<int>q;
+vector<int>G[N];
+void addedge(int u,int v){
+	G[u].push_back(v);
+	ru[v]++;
+}
+
+signed main(){
+	cin>>n>>m;
+	for(int i=1;i<=m;i++){
+		cin>>u>>v;
+		addedge(u,v);
+	}
+	for(int i=1;i<=n;i++){
+		ans[i]=1;
+		if(!ru[i]) q.push(i);
+	}
+	while(!q.empty()){
+		int fro=q.front();
+		q.pop();
+		vis[fro]=1;
+		for(int i=0;i<G[fro].size();i++){
+			int to=G[fro][i];
+			if(vis[to]) continue;
+			ru[to]--;
+			ans[to]=max(ans[to],ans[fro]+1);
+			if(!ru[to])	q.push(to);
+		}
+	}
+	for(int i=1;i<=n;i++) cout<<ans[i]<<"\n";
+	return 0;
+}
+```
+
+
+
+##### luoguP4742 [Wind Festival]Running In The Sky
+
+```cpp
+#include<bits/stdc++.h>
+#define int long long 
+using namespace std;
+const int N=2e5+7;
+
+struct E{
+	int from,to,nxt;
+}e[N<<3];
+
+int head[N],cnt=0;
+void addedge(int u,int v){
+	e[++cnt]=(E){u,v,head[u]};head[u]=cnt;
+}
+vector<int>G[N]; 
+pair<int,int>ans[N]; //强连通分量的亮度和与最大亮度 
+queue<int>q;
+int n,m,u,v,a[N],ru[N],bel[N],val[N],mxe[N],sccnum=0;
+int dfn[N],low[N],vis[N],stk[N],top=0,idx=0;
+inline void tarjan(int x){
+	dfn[x]=low[x]=++idx;
+	vis[x]=1;
+	stk[++top]=x;
+	for(int i=head[x];i;i=e[i].nxt){
+		int to=e[i].to;
+		if(!dfn[to]){
+			tarjan(to);
+			low[x]=min(low[x],low[to]);
+		}else if(vis[to]) low[x]=min(low[x],dfn[to]);
+	}
+	if(dfn[x]==low[x]){
+		int y;sccnum++;
+		while(y=stk[top--]){
+			bel[y]=sccnum;
+			vis[y]=0;
+			ans[sccnum].first+=a[y];
+			ans[sccnum].second=max(ans[sccnum].second,a[y]);
+			if(x==y) break;
+		}
+		val[sccnum]=ans[sccnum].first;
+		mxe[sccnum]=ans[sccnum].second;
+	}
+}
+
+signed main(){
+	ios::sync_with_stdio(0);
+	cin.tie(0);cout.tie(0);
+	cin>>n>>m;
+	for(int i=1;i<=n;i++) cin>>a[i];
+	for(int i=1;i<=m;i++){
+		cin>>u>>v;
+		addedge(u,v);
+	}
+	for(int i=1;i<=n;i++){  //tarjan缩点 
+		if(!dfn[i]) tarjan(i);
+	}
+	for(int i=1;i<=cnt;i++){
+		if(bel[e[i].from]!=bel[e[i].to]){
+			G[bel[e[i].from]].push_back(bel[e[i].to]); //重建图 
+			ru[bel[e[i].to]]++;
+		}
+	}
+	for(int i=1;i<=sccnum;i++){
+		vis[i]=0;
+		if(!ru[i]) q.push(i);
+	}
+	int mx=1; //记录答案（强连通分量编号) 
+	while(!q.empty()){ //拓扑排序 
+		int fro=q.front();
+		q.pop();
+		vis[fro]=1;
+		for(int i=0;i<G[fro].size();i++){
+			int to=G[fro][i];
+			if(vis[to]) continue; 
+			ru[to]--;
+			if(ans[to].first<ans[fro].first+val[to]){
+				ans[to].first=ans[fro].first+val[to];
+				ans[to].second=max(ans[fro].second,mxe[to]);
+			}else if(ans[to].first==ans[fro].first+val[to]){
+				ans[to].second=max(ans[fro].second,ans[to].second);	
+			}
+			if(!ru[to]) q.push(to);
+		}
+	}
+	for(int i=1;i<=sccnum;i++){
+		if(ans[i].first>ans[mx].first) mx=i;
+		else if(ans[i].first==ans[mx].first&&ans[i].second>ans[mx].second) mx=i;
+	}
+	cout<<ans[mx].first<<" "<<ans[mx].second<<"\n"; 
+	return 0;
+}
+```
+
+
+
+
+
+### 关键路径
+
+前面我们学到了拓扑排序
+
+那么我们可以开始学关键路径了。
+
+
+
+AOE网是边表示活动的网，是与AOV网相对应的概念。
+
+而拓扑排序恰恰就是在AOV网上进行的，这是拓扑排序与关键路径最直观的联系。
+
+**关键路径**(critical path)：路径长度最长的路径。
+
+
+
+ETV:Earliest Time Of Vertex
+
+LTV:Latest Time Of Vertex
+
+ETE:Earliest Time Of Edge
+
+LTE:Lastest Time Of Edge
+
+知道了ETV和LTV，就能推断出相应的ETE和LET。
+
+
+
+拓扑排序的过程中，我们可以确定ve的值。从汇点反拓扑排序，就能求出vl的值。
+
+
+
+关键活动：LTV==ETV的活动
+
+关键活动所连成的路径就是关键路径。
+
+
+
+求得了ETE与LTE之后只需要判断两者是否相等，如果相等则为关键路径中的一条边。
+
+
+
+算法流程：
+
+①拓扑排序获得每一个事件的最早发生时间ETV
+
+②根据事件最早发生时间ETV推断事件的最晚发生时间LTV
+
+③计算活动的最早于最晚发生时间
+
+
+
+时间复杂度O(n+e)
+
+
+
+### 参考资料
+
+https://www.luogu.com.cn/blog/juruohyfhaha/post-ti-xie-su-dian
+
+https://www.luogu.com.cn/training/42933#information

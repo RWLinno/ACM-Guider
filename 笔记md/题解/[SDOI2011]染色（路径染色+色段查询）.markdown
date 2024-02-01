@@ -1,0 +1,311 @@
+---
+title : [SDOI2011]染色（路径染色+色段查询）
+tags : ACM,数据结构
+date : 2021-11-16
+author : Linno
+
+---
+
+
+
+# P2486 [SDOI2011]染色
+
+### 题面
+
+给一棵树，支持两种操作：
+
+①给定u,v,w，将u到v的路径上所有节点染成颜色w。
+
+②给定u,v，查询u到v路径上颜色段的数量。
+
+
+
+### 树链剖分+线段树
+
+树链剖分将无根树拍平后，用线段树去做。维护每个区间的左颜色、右颜色、色段和以及tag，如果合并的时候两端颜色一致，那么ans-1。
+
+```C++
+#include<bits/stdc++.h>
+using namespace std;
+const int N=1e5+7;
+int n,m,col[N];
+
+vector<int>G[N];
+void addedge(int u,int v){
+	G[u].push_back(v);
+	G[v].push_back(u);
+}
+
+int sz[N],dep[N],son[N],fa[N],bel[N],dfn[N],idfn[N],idx=0;
+inline void dfs1(int x){
+	sz[x]=1;
+	for(int i=0;i<G[x].size();i++){
+		int to=G[x][i];
+		if(to==fa[x]) continue;
+		dep[to]=dep[x]+1;
+		fa[to]=x;
+		dfs1(to);
+		sz[x]+=sz[to];
+		if(sz[son[x]]<sz[to]) son[x]=to;
+	}
+}
+
+inline void dfs2(int x,int tp){ //重链剖分
+	dfn[x]=++idx;
+	idfn[idx]=x;
+	bel[x]=tp;
+	if(son[x]) dfs2(son[x],tp);
+	for(int i=0;i<G[x].size();i++){
+		int to=G[x][i];
+		if(to==fa[x]||to==son[x]) continue;
+		dfs2(to,to);
+	}
+}
+
+struct Node{
+	int sum,l,r,lc,rc,tg,c; 
+}tr[N<<2];
+
+#define lss p<<1
+#define rss p<<1|1
+
+inline void build(int p,int l,int r){
+	tr[p].l=l;tr[p].r=r;
+	if(l==r){
+		tr[p].sum=1;
+		tr[p].c=tr[p].lc=tr[p].rc=col[idfn[l]];
+		return;
+	}
+	int mid=(l+r)>>1;
+	build(lss,l,mid);
+	build(rss,mid+1,r);
+	tr[p].sum=(tr[lss].sum+tr[rss].sum-(tr[lss].rc==tr[rss].lc)); 
+	tr[p].lc=tr[lss].lc;
+	tr[p].rc=tr[rss].rc;
+}
+
+inline void pushdown(int p){ 
+	if(tr[p].l==tr[p].r) return;
+	if(tr[p].tg){
+		tr[lss].tg=tr[rss].tg=tr[p].tg;
+		tr[lss].c=tr[rss].c=tr[p].tg;
+		tr[lss].lc=tr[rss].lc=tr[p].tg;
+		tr[lss].rc=tr[rss].rc=tr[p].tg;
+		tr[lss].sum=tr[rss].sum=1;
+		tr[p].tg=0;
+	}
+}
+
+inline void update(int p,int ql,int qr,int c){ //区间更新
+	pushdown(p);
+	if(ql==tr[p].l&&tr[p].r==qr){
+		tr[p].sum=1;
+		tr[p].tg=c;
+		tr[p].c=tr[p].lc=tr[p].rc=c;
+		return;
+	}
+	int mid=(tr[p].l+tr[p].r)>>1;
+	if(ql>mid) update(rss,ql,qr,c);
+	else if(qr<=mid) update(lss,ql,qr,c);
+	else{
+		update(lss,ql,mid,c);
+		update(rss,mid+1,qr,c);
+	}
+	tr[p].sum=tr[lss].sum+tr[rss].sum-(tr[lss].rc==tr[rss].lc);
+	tr[p].lc=tr[lss].lc;
+	tr[p].rc=tr[rss].rc;
+}
+
+inline int query(int p,int ql,int qr){ //区间查询
+	pushdown(p);
+	if(ql==tr[p].l&&tr[p].r==qr) return tr[p].sum;
+	int mid=(tr[p].l+tr[p].r)>>1;
+	if(mid<ql) return query(rss,ql,qr);
+	else if(mid>=qr) return query(lss,ql,qr);
+	else{
+		return (query(lss,ql,mid)+query(rss,mid+1,qr)-(tr[lss].rc==tr[rss].lc));
+	}	
+}
+
+int Qc(int p,int ql,int qr){ //返回某位置的颜色
+	pushdown(p);
+	if(tr[p].l==ql&&tr[p].r==qr) return tr[p].c;
+	int mid=tr[p].l+tr[p].r>>1;
+	if(mid<ql) return Qc(rss,ql,qr);
+	else return Qc(lss,ql,qr); 
+}
+
+signed main(){
+	ios::sync_with_stdio(0);
+	cin.tie(0);cout.tie(0);
+	int u,v,w;char op;
+	cin>>n>>m;
+	for(int i=1;i<=n;i++) cin>>col[i];
+	for(int i=1;i<n;i++){
+		cin>>u>>v;
+		addedge(u,v);
+	}
+	dfs1(1);
+	dfs2(1,1); 
+	build(1,1,n);
+	for(int i=1;i<=m;i++){
+		cin>>op;
+		if(op=='Q'){
+			cin>>u>>v; //路径查询 
+			int res=0,Cson,Cfa;
+			while(bel[u]!=bel[v]){
+				if(dep[bel[u]]<dep[bel[v]]) swap(u,v); 
+				res+=query(1,dfn[bel[u]],dfn[u]);
+				Cson=Qc(1,dfn[bel[u]],dfn[bel[u]]);
+				Cfa=Qc(1,dfn[fa[bel[u]]],dfn[fa[bel[u]]]);
+				if(Cson==Cfa) res--; //合并链两端颜色相等
+				u=fa[bel[u]];
+			}
+			if(dep[u]<dep[v]) swap(u,v);
+			res+=query(1,dfn[v],dfn[u]);
+			cout<<res<<"\n";
+		}else{
+			cin>>u>>v>>w;  //路径涂色 
+			while(bel[u]!=bel[v]){
+				if(dep[bel[u]]<dep[bel[v]]) swap(u,v); 
+				update(1,dfn[bel[u]],dfn[u],w);
+				u=fa[bel[u]];
+			}
+			if(dep[u]<dep[v]) swap(u,v);
+			update(1,dfn[v],dfn[u],w);
+		}
+	}
+	return 0;
+}
+```
+
+
+
+### LCT
+
+连接不同色点的边权值设为1，连接同色的点的边权值设为0，那么我们要输出的就是路径上所有的边权和+1。我们维护每个splay节点的最左端值和最右端值，对于它的父亲节点，就可以找到其前驱和后继的颜色，就可以累计节点跟前驱后继连边的权值和了。
+
+```C++
+#include<bits/stdc++.h>
+#define int long long 
+#define N 1000010
+using namespace std;
+
+inline int read(){
+    int x=0,o=0;char ch=getchar();
+    while(ch!='-'&&(ch<'0'||'9'<ch)) ch=getchar();
+    if(ch=='-') o=1,ch=getchar();
+    while('0'<=ch&&ch<='9') x=(x<<1)+(x<<3)+(ch^48),ch=getchar();
+    return o?-x:x;
+}
+int n,m;
+char ch;
+
+#define lson tr[x].ch[0]
+#define rson tr[x].ch[1]
+struct Splaytree{int w,c,lc,rc,tag,rev,fa,ch[2]; }tr[N];
+int stk[N],top;
+
+inline bool isroot(int x) { return tr[tr[x].fa].ch[0]!=x&&tr[tr[x].fa].ch[1]!=x; }
+
+inline void pushdown(int x) {
+    if(tr[x].rev) {
+        swap(lson,rson);
+        swap(tr[lson].lc,tr[lson].rc);
+        swap(tr[rson].lc,tr[rson].rc);
+        tr[lson].rev^=1,tr[rson].rev^=1;
+        tr[x].rev=0;
+    }
+    if(tr[x].tag) {
+        tr[x].lc=tr[x].rc=tr[x].c=tr[x].tag;
+        tr[lson].tag=tr[rson].tag=tr[x].tag;
+        tr[x].w=tr[x].tag=0;
+    }
+}
+
+inline void pushup(int x) {
+    pushdown(lson),pushdown(rson);
+    tr[x].w=tr[lson].w+tr[rson].w;
+    if(lson) {
+        tr[x].lc=tr[lson].lc;
+        if(tr[x].c!=tr[lson].rc) ++tr[x].w;
+    }
+    else tr[x].lc=tr[x].c;
+    if(rson) {
+        tr[x].rc=tr[rson].rc;
+        if(tr[x].c!=tr[rson].lc) ++tr[x].w;
+    }
+    else tr[x].rc=tr[x].c;
+}
+
+inline void rotate(int x){
+    int y=tr[x].fa,z=tr[y].fa;
+    int k=tr[y].ch[1]==x;
+    if(!isroot(y)) tr[z].ch[tr[z].ch[1]==y]=x;  tr[x].fa=z;
+    tr[y].ch[k]=tr[x].ch[k^1],tr[tr[x].ch[k^1]].fa=y;
+    tr[x].ch[k^1]=y,tr[y].fa=x;
+    pushup(y);
+}
+
+inline void splay(int x) {
+    stk[top=1]=x;
+    for(int i=x; !isroot(i); i=tr[i].fa) stk[++top]=tr[i].fa;
+    while(top) pushdown(stk[top--]);
+    while(!isroot(x)) {
+        int y=tr[x].fa,z=tr[y].fa;
+        if(!isroot(y))
+            (tr[y].ch[0]==x)^(tr[z].ch[0]==y)?rotate(x):rotate(y);
+        rotate(x);	
+    }
+    pushup(x);
+}
+
+inline void access(int x) {
+    for(int y=0; x; y=x,x=tr[x].fa) splay(x),rson=y,pushup(x);
+}
+
+inline void makeroot(int x) {
+    access(x),splay(x),tr[x].rev^=1;
+}
+
+inline int findroot(int x){
+    access(x),splay(x);
+    while(lson) x=lson;
+    return x;
+}
+
+inline void split(int x,int y) {
+    makeroot(x),access(y),splay(y);
+}
+
+inline void link(int x,int y) {
+    makeroot(x),tr[x].fa=y;
+}
+
+signed main() {
+    n=read();m=read();
+    for(int i=1;i<=n;++i) tr[i].c=tr[i].lc=tr[i].rc=read();
+    for(int u,v,i=1;i<n;++i) u=read(),v=read(),link(u,v); 
+    for(int a,b,c,i=1;i<=m;++i) {
+        ch=getchar();
+        while(ch!='C'&&ch!='Q') ch=getchar();
+        if(ch=='C') {
+            a=read(),b=read(),c=read();
+            split(a,b);
+            tr[b].tag=c;
+        }
+        if(ch=='Q') {
+            a=read(),b=read();
+            split(a,b);
+            printf("%d\n",tr[b].w+1);
+        }
+    }
+    return 0;
+}
+```
+
+
+
+### 参考
+
+https://www.luogu.com.cn/blog/user48618/solution-p2486

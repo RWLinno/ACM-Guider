@@ -1,0 +1,133 @@
+---
+title : 对拍
+tags : ACM,杂项
+date : 2022-2-7
+author : Linno
+
+---
+
+
+
+# 对拍
+
+如果你手上有一个数据生成器以及一个答案正确的程序（暴力或者标程），然后需要验证自己的做法是否正确，那么可以写一个对拍去不断比较两个程序的答案。
+
+
+
+### 步骤
+
+以Codeforces 770B为例
+
+①准备一个数据生成器data.exe
+
+```cpp
+#include<bits/stdc++.h>
+#define inf 0x3f3f3f3f
+#define int long long
+using namespace std;
+signed main(){
+	srand(time(0));
+	cout<<"1\n";
+	int n=rand()%20,x=rand()%10,y=rand()%10;
+	cout<<n<<" "<<x<<" "<<y<<" \n";
+	for(int i=1;i<=n;i++) cout<<rand()%10<<" ";
+	return 0;
+}
+```
+
+
+
+②准备标程或暴力std.exe以及自己的程序test.exe
+
+下面这一份是暴力
+
+```cpp
+#include<bits/stdc++.h>
+#define inf 0x3f3f3f3f
+#define int long long
+using namespace std;
+const int N=1e5+7;
+const int mod=1e9+7;
+
+int read(){	int x=0,f=1;char ch=getchar();while(ch<'0'||ch>'9'){if(ch=='-') f=f*-1;ch=getchar();}while(ch>='0'&&ch<='9'){x=x*10+ch-'0';ch=getchar();}return x*f;}
+
+int t,flag,x,y,n,a[N];
+
+struct X{
+	int x,y;
+};
+
+signed main(){
+	t=read();
+	while(t--){
+		flag=0;
+		n=read();x=read();y=read();
+		for(int i=1;i<=n;i++) a[i]=read();
+		queue<X>q;
+		q.push((X){y,n});
+		while(!q.empty()){
+			X fro=q.front();
+			q.pop();
+			if(fro.y==0){
+				if(fro.x==x){
+					flag=1;break;
+				}else continue;
+			}
+			q.push((X){fro.x-a[fro.y],fro.y-1});
+			q.push((X){fro.x^a[fro.y],fro.y-1});
+		}
+		if(flag) puts("Alice");
+		else puts("Bob");
+	}
+	return 0;
+}
+```
+
+下面这一份是要测试的代码
+
+```cpp
+#include<bits/stdc++.h>
+#define int long long
+using namespace std;
+const int N=1e5+7;
+const int mod=1e9+7;
+
+int t,flag,x,y,n,a[N],s[N];
+
+signed main(){
+	cin>>t;
+	while(t--){
+		cin>>n>>x>>y;
+		for(int i=1;i<=n;i++){
+			cin>>a[i];
+			y^=a[i];
+		}
+		if((y&1)==(x&1)) puts("Alice");
+		else puts("Bob");
+	}
+	return 0;
+}
+
+```
+
+
+
+③编写bat文件格式如下
+
+```
+:dxl
+data > in.txt
+std < input.txt > std_out.txt
+test < input.txt > test_out.txt
+fc std_out.txt test_out.txt
+if not errorlevel 1 goto dxl
+pause
+```
+
+④将他们放到同一个文件夹中，运行bat文件即可。
+
+
+
+# 参考资料
+
+https://blog.csdn.net/code12hour/article/details/51252457

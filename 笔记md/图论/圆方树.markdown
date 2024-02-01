@@ -1,0 +1,466 @@
+---
+title : 圆方树
+date : 2021-10-22
+tags : ACM,图论
+author : Linno
+
+---
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/c43caa6bc6f84e5aabf313657e6b91f5.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA57yE5ruF,size_20,color_FFFFFF,t_70,g_se,x_16#pic_center)
+
+
+### 圆方树
+
+是一种将一般图变为树的方法，进而将一般图上的某些问题转化为树上问题。
+
+
+
+### 基本概念
+
+**仙人掌图**：不存在边同时属于多个环的无向连通图
+
+对于每个环新建一个方点，该方点想换上每一个圆点连边，就构成了圆方树。
+
+**点双连通图**：图中任意两不同点之间都有至少两条点不重复的路径。
+
+**双连通分量**：一个图的点双连通分量是一个极大点双连通子图。
+
+在圆方树中，每个点双对应一个方点，原图每个点对应一个圆点，
+
+
+
+### 构建方法
+
+用tarjan算法求出点双连通分量，对于每一个点双连通分量新建一个方点与环上的点相连（注意一条边不属于点双）
+
+```C++
+void tarjan(int x){ //tarjan求双连通分量 
+	dfn[x]=low[x]=++idx;
+	stk[++top]=x;
+	for(int i=G.head[x];i;i=G.nxt[i]){
+ 		int to=G.to[i];
+		if(!dfn[to]){
+			tarjan(to);
+			low[x]=min(low[x],low[to]);
+			if(low[to]==dfn[x]){ //建立圆方树 
+				T.addedge(++tot,x);
+				int tmp=0;
+				do{
+					tmp=stk[top--];
+					T.addedge(tot,tmp); 
+				}while(tmp!=to);
+			}
+		}else low[x]=min(low[x],dfn[to]);
+	}
+}
+```
+
+
+
+### 广义圆方树
+
+普通圆方树只能解决仙人掌图上的问题，而广义圆方树可以将所有无向图转化为圆方树处理。
+
+##### 性质
+
+圆点方点之间，不存在两个“形状相同”的点相连。
+
+以r为根的仙人掌上p的子仙人掌就是圆方树中以r为根时，p子树中的所有圆点。
+
+
+
+```C++
+void tarjan(int x,int f){
+    dfn[x]=low[x]=++tim;
+    st[++tot]=x;
+    for(int i=G.head[x];i;i=G.nex[i])
+        if(G.v[i]!=f){
+            int y=G.v[i];
+            if(!dfn[y]){
+                tarjan(y,x);
+                low[x]=min(low[x],low[y]);
+                if(low[y]>=dfn[x]){
+                    siz++;
+                    while(st[tot]!=y)
+                        T.add(n+siz,st[tot--]);
+                    T.add(n+siz,st[tot--]);
+                    T.add(n+siz,x);
+                }
+            }
+            else
+                low[x]=min(low[x],dfn[y]);
+        }
+}
+```
+
+
+
+### 例题
+
+##### luoguP4320 道路相遇
+
+```C++
+#include<bits/stdc++.h>
+#define inf 0x3f3f3f3f
+#define int long long
+using namespace std;
+const int maxn=1e6+7;
+const int mod=1e9+7;
+
+int read(){	int x=0,f=1;char ch=getchar();while(ch<'0'||ch>'9'){if(ch=='-') f=f*-1;ch=getchar();}while(ch>='0'&&ch<='9'){x=x*10+ch-'0';ch=getchar();}return x*f;}
+
+int n,m,q,u,v,w,tot;
+int dfn[maxn],low[maxn],idx;
+int stk[maxn],top;
+int dep[maxn],sz[maxn],tp[maxn],fa[maxn],son[maxn];
+
+
+struct Graph{
+	int head[maxn],cnt,nxt[maxn<<2],to[maxn<<2];
+	inline void addedge(int u,int v){ 
+		nxt[++cnt]=head[u];to[cnt]=v;head[u]=cnt;
+		nxt[++cnt]=head[v];to[cnt]=u;head[v]=cnt;
+	}
+}G,T; //原图以及圆方树 
+
+void dfs1(int x){
+	sz[x]=1;
+	for(int i=T.head[x];i;i=T.nxt[i]){
+		int to=T.to[i];
+		if(fa[x]==to) continue;
+		dep[to]=dep[x]+1; //处理深度 
+		fa[to]=x; //处理父亲信息 
+		dfs1(to);
+		sz[x]+=sz[to]; //处理子树大小 
+		if(sz[to]>sz[son[x]]) son[x]=to; //重儿子 
+	}
+}
+
+void dfs2(int x,int top){
+	tp[x]=top; //top为起点 
+	if(son[x]) dfs2(son[x],top); //重链 
+	for(int i=T.head[x];i;i=T.nxt[i]){
+		int to=T.to[i];
+		if(to==son[x]||to==fa[x]) continue;
+		dfs2(to,to); //轻链 
+	}
+}
+
+inline int query(int x,int y){ //树链lca 
+	while(tp[x]!=tp[y]){ 
+		if(dep[tp[x]]<dep[tp[y]]) swap(x,y);
+		x=fa[tp[x]];
+	}
+	return dep[x]<dep[y]?x:y;
+}
+
+void tarjan(int x){ //tarjan求双连通分量 
+	dfn[x]=low[x]=++idx;
+	stk[++top]=x;
+	for(int i=G.head[x];i;i=G.nxt[i]){
+ 		int to=G.to[i];
+		if(!dfn[to]){
+			tarjan(to);
+			low[x]=min(low[x],low[to]);
+			if(low[to]>=dfn[x]){ //建立圆方树 
+				T.addedge(++tot,x);
+				int tmp=0;
+				do{
+					tmp=stk[top--];
+					T.addedge(tot,tmp); 
+				}while(tmp!=to);
+			}
+		}else low[x]=min(low[x],dfn[to]);
+	}
+}
+
+signed main(){
+	tot=n=read();m=read();
+	for(int i=1;i<=m;i++){
+		u=read();v=read();
+		G.addedge(u,v);
+	}
+	tarjan(1); //tarjan建树 
+	dep[1]=1;
+	dfs1(1);
+	dfs2(1,1); 
+	q=read();
+	int u,v,lca;
+	while(q--){
+		u=read();v=read();
+		lca=query(u,v);
+		printf("%lld\n",(dep[u]+dep[v]-2*dep[lca])/2+1);
+	} 
+	return 0;
+}
+```
+
+
+
+##### [APIO2018] Duathlon 铁人两项
+
+$$
+圆点对答案的贡献：Σsize[x]∗(size[c]−1−size[x])\\
+方点对答案的贡献：Σ(deg[c]−2)∗size[x]∗(size[c]−size[x])\\
+$$
+
+
+
+```C++
+#include<bits/stdc++.h>
+#define inf 0x3f3f3f3f
+#define int long long
+using namespace std;
+const int N=2e5+7;
+
+int read(){	int x=0,f=1;char ch=getchar();while(ch<'0'||ch>'9'){if(ch=='-') f=f*-1;ch=getchar();}while(ch>='0'&&ch<='9'){x=x*10+ch-'0';ch=getchar();}return x*f;}
+
+int n,m,num,u,v,ans,tot=0;
+int vis[N],sz[N],wg[N<<1];
+int dfn[N],low[N],idx;
+int stk[N],top;
+
+struct Graph{
+	int cnt,head[N<<1],nxt[N<<1],to[N<<1];
+	inline void add(int u,int v){
+		nxt[++cnt]=head[u],to[cnt]=v;head[u]=cnt;
+		nxt[++cnt]=head[v],to[cnt]=u;head[v]=cnt;
+	}
+}G,T; //原图和圆方树 
+
+void tarjan(int x){
+	dfn[x]=low[x]=++idx;
+	stk[++top]=x;
+	++num; //统计块中点的个数 
+	for(int i=G.head[x];i;i=G.nxt[i]){
+		int to=G.to[i];
+		if(!dfn[to]){
+			tarjan(to);
+			low[x]=min(low[x],low[to]);
+			if(dfn[x]<=low[to]){ //建立圆方树 
+				wg[++tot]=0;
+				T.add(tot,x);
+				int tmp=0;
+				do{
+					tmp=stk[top--];
+					T.add(tot,tmp);
+					++wg[tot];
+				}while(tmp!=to);
+				++wg[tot];
+			}
+		}else low[x]=min(low[x],dfn[to]);
+	}
+} 
+
+void dfs(int x,int fa){
+	vis[x]=1;
+	if(x<=n) sz[x]=1;
+	for(int i=T.head[x];i;i=T.nxt[i]){
+		int to=T.to[i];
+		if(to!=fa){
+			dfs(to,x);
+			ans+=2*wg[x]*sz[x]*sz[to];
+			sz[x]+=sz[to];
+		}
+	}
+	ans+=2ll*wg[x]*sz[x]*(num-sz[x]);
+}
+
+signed main(){
+//	ios::sync_with_stdio(0);
+//	cin.tie(0);cout.tie(0);
+	tot=n=read();m=read();
+	for(int i=1;i<=n;i++) wg[i]=-1;
+	for(int i=1;i<=m;i++){
+		cin>>u>>v;
+		G.add(u,v);
+	}
+	for(int i=1;i<=n;i++){
+		if(!dfn[i]){
+			num=0;
+			tarjan(i),top--; //tarjan建圆方树
+			dfs(i,0);
+		}
+	}
+	cout<<ans<<endl;
+	return 0;
+}
+```
+
+
+
+##### [CodeForces 487E] Tourists
+
+```C++
+#include<bits/stdc++.h>
+#define inf 0x3f3f3f3f
+#define int long long
+using namespace std;
+const int maxn=2e5+7;
+
+int read(){	int x=0,f=1;char ch=getchar();while(ch<'0'||ch>'9'){if(ch=='-') f=f*-1;ch=getchar();}while(ch>='0'&&ch<='9'){x=x*10+ch-'0';ch=getchar();}return x*f;}
+
+multiset<int>S[maxn];
+
+int n,m,q,ans,tot;
+int w[maxn],idf[maxn],bel[maxn];
+int fa[maxn],son[maxn],dep[maxn],sz[maxn];
+int dfn[maxn],low[maxn],idx;
+int stk[maxn],top,tmp;
+
+struct Graph{
+	int cnt,head[maxn<<1],nxt[maxn<<1],to[maxn<<1];
+	inline void add(int u,int v){
+		nxt[++cnt]=head[u];to[cnt]=v;head[u]=cnt;
+		nxt[++cnt]=head[v];to[cnt]=u;head[v]=cnt;
+	}
+}G,T;
+
+void tarjan(int x){ 
+	dfn[x]=low[x]=++idx;
+	stk[++top]=x;
+	for(int i=G.head[x];i;i=G.nxt[i]){
+		int to=G.to[i];
+		if(!dfn[to]){
+			tarjan(to);
+			low[x]=min(low[x],low[to]);
+			if(low[to]==dfn[x]){
+				++tot;
+				for(int tmp=0;tmp!=to;--top){
+					tmp=stk[top];
+					T.add(tot,tmp);
+				}
+				T.add(x,tot);
+			}
+		}else low[x]=min(low[x],dfn[to]);
+	}
+}
+
+void dfs0(int x,int f){
+	fa[x]=f;
+	dep[x]=dep[f]+1;
+	sz[x]=1;
+	for(int i=T.head[x];i;i=T.nxt[i]){
+		int to=T.to[i];
+		if(to==f) continue;
+		dfs0(to,x);
+		sz[x]+=sz[to];
+		if(sz[son[x]]<sz[to]) son[x]=to;
+	}
+}
+
+void dfs1(int x,int f,int tp){
+	dfn[x]=++idx;
+	idf[idx]=x;
+	bel[x]=tp;
+	if(son[x]) dfs1(son[x],x,tp);
+	for(int i=T.head[x];i;i=T.nxt[i]){
+		int to=T.to[i];
+		if(to!=f&&to!=son[x]) dfs1(to,x,to);
+	}
+}
+
+#define ls (p<<1)
+#define rs (p<<1|1)
+#define mid ((l+r)>>1)
+
+int dat[maxn<<2];
+
+void build(int p,int l,int r){
+	if(l==r){
+		dat[p]=w[idf[l]];
+		return;
+	}
+	build(ls,l,mid);
+	build(rs,mid+1,r);
+	dat[p]=min(dat[ls],dat[rs]);
+}
+
+void modify(int p,int l,int r,int pos,int val){
+	if(l==r){
+		dat[p]=val;
+		return;
+	}
+	if(pos<=mid) modify(ls,l,mid,pos,val);
+	else modify(rs,mid+1,r,pos,val);
+	dat[p]=min(dat[ls],dat[rs]);
+}
+
+int query(int p,int l,int r,int ql,int qr){
+	if(qr<l||r<ql) return inf;
+	if(ql<=l&&r<=qr) return dat[p];
+	return min(query(ls,l,mid,ql,qr),query(rs,mid+1,r,ql,qr));
+}
+
+signed main(){
+//	ios::sync_with_stdio(0);
+//	cin.tie(0);cout.tie(0);
+//	freopen("in.cpp","r",stdin);
+	tot=n=read();m=read();q=read();
+	for(int i=1;i<=n;i++) w[i]=read();
+	int u,v,x,y;
+	char op[3];
+	for(int i=1;i<=m;i++){
+		u=read();v=read();
+		G.add(u,v);
+	}
+	tarjan(1);
+	dfs0(1,0);
+	idx=0;
+	dfs1(1,0,1); //对圆方树进行剖分 
+	for(int i=1;i<=n;i++){
+		if(fa[i]) S[fa[i]].insert(w[i]); //集合维护最小权值 
+	}
+	for(int i=n+1;i<=tot;i++){
+		w[i]=*S[i].begin(); //方点的权值是儿子中的最小权值 
+	}
+	build(1,1,tot); //按dfs序拉直，然后用线段树维护
+	for(int i=1;i<=q;i++){
+		scanf("%s",op);
+		x=read();y=read();
+		if(*op=='C'){
+			modify(1,1,tot,dfn[x],y); //单点修改 
+			if(fa[x]){ //处理集合信息 
+				int u=fa[x];
+				S[u].erase(S[u].lower_bound(w[x]));
+				S[u].insert(y);
+				if(w[u]!=*S[u].begin()){ //集合最小值更改 
+					w[u]=*S[u].begin();
+					modify(1,1,tot,dfn[u],w[u]); //修改方点所在节点位置 
+				}
+			}
+			w[x]=y;
+		}else{ 
+			int ans=inf;
+			while(bel[x]!=bel[y]){ //如果两点不在同一条链 
+				if(dep[bel[x]]<dep[bel[y]]) swap(x,y);
+				ans=min(ans,query(1,1,tot,dfn[bel[x]],dfn[x])); //查询x到链顶的最小值 
+				x=fa[bel[x]]; //将x跳到与y相同的链中 
+			}
+			if(dfn[x]>dfn[y]) swap(x,y);
+			ans=min(ans,query(1,1,tot,dfn[x],dfn[y])); //另外一边的最小值 
+			if(x>n) ans=min(ans,w[fa[x]]); //如果是个方点，那么其父亲节点才是lca,比较其权值 
+			printf("%d\n",ans);
+		} 
+	}
+	return 0;
+}
+```
+
+
+
+### 小技巧
+
+给方点标号为n+1开始的整数，可以有效区分圆点和方点。
+
+建成圆方树后可以按dfs序拉直，然后就可以套数据结构进行各种操作了。
+
+
+
+### 参考资料
+
+https://www.cnblogs.com/nianheng/p/9898630.html
+
+https://www.cnblogs.com/PinkRabbit/p/10446473.html
+
+https://www.luogu.com.cn/blog/cdddffqtwyyy/solution-p4320

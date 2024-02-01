@@ -1,0 +1,112 @@
+---
+title : 堆 
+date : 2021-8-3 
+tags : ACM，数据结构
+author : Linno
+---
+
+
+
+
+
+
+
+![img](https://img-blog.csdnimg.cn/439b567eead840bea913a55cd2537d97.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA57yE5ruF,size_20,color_FFFFFF,t_70,g_se,x_16#pic_center)
+
+# 堆
+
+堆是一棵具有特定性质的二叉树，堆的基本要求是堆中所有结点的值必须大于等于（或小于等于）其孩子结点的值，这也称为堆的性质。堆还有另一个性质，就是当h&gt;0时，所有叶子结点都处于第h或h-1层，也就是说，堆应该是一棵完全二叉树。
+
+### 堆的类型
+
+大顶堆：顾名思义大的元素在顶部
+
+小顶堆：顾名思义小的元素在顶部
+
+### 堆的操作
+
+##### 上浮节点
+
+```java
+void checkup(int node)  //与父节点比较向上更新
+{
+	if (node <= 1)
+	{
+		return;    //已经达到堆顶
+	}
+	if (tree[node]<tree[node >> 1]) //该节点比父节点要小
+	{
+		swap(tree[node], tree[node >> 1]); //交换两者
+		checkup(node >> 1); //继续上浮
+	}
+}
+```
+
+##### 下沉节点
+
+```java
+void checkdown(int node)  //向下更新二叉堆
+{
+	if (node > num)
+	{
+		return;    //已经无法下沉
+	}
+	if (tree[node] < tree[node << 1] && tree[node] < tree[node << 1 | 1])
+	{
+		return;    //没有比子节点小则返回
+	}
+	if (tree[node << 1] < tree[node << 1 | 1]) //左儿子小于右儿子
+	{
+		swap(tree[node], tree[node << 1]); //交换左儿子
+		if (node * 2 < num)
+		{
+			checkdown(node << 1);    //继续下沉
+		}
+	}
+	else    //右儿子小于左儿子
+	{
+		swap(tree[node], tree[node << 1 | 1]);
+		if (node * 2 + 1 < num)
+		{
+			checkdown(node << 1 | 1);
+		}
+	}
+}
+```
+
+##### 插入节点
+
+```java
+void push(long long val)  //插入val
+{
+	tree[++num] = val; //先插入到最后的位置
+	checkup(num); //对他进行上浮操作
+}
+```
+
+##### 删除节点
+
+```java
+void pop()  //删除最小的数，即tree[1]
+{
+	tree[1] = tree[num]; //首先让最后的元素移动到堆顶
+	tree[num] = inf; //原来的位置不再有任何元素
+	num--;
+	checkdown(1); //对堆顶进行下沉操作
+}
+```
+
+##### 构建二叉堆
+
+把一个无序的完全二叉树调整为二叉堆，只需让所有非叶子节点依次下沉。
+
+##### 如果你已经学完了堆的基本知识，那么不妨看看可并堆和左偏树
+
+https://blog.csdn.net/SC_Linno/article/details/120970965
+
+### 参考资料
+
+https://blog.csdn.net/qq_41900081/article/details/86670001
+
+https://blog.csdn.net/qq_39445165/article/details/84932335
+

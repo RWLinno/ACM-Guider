@@ -1,0 +1,271 @@
+---
+ title: 线性基和线性代数
+date : 2022-1-29
+tags : ACM,数学
+author : Linno
+
+---
+
+
+
+# 线性基
+
+线性基是**数的集合**，每个序列拥有**至少一个**线性基，取线性基中若干个数异或起来可以得到原序列中的任何一个数。
+
+
+
+### 性质
+
+1.原序列中的任意一个数都可以由线性基里面的一些数异或得到。
+
+2.线性基里面的任意一些数异或起来都不能得到0。
+
+3.线性基里面的数的个数唯一，并且在保持性质1的前提下，数的个数是最少的。
+
+
+
+### 构造
+
+尝试插入时异或若干个数之后变成0，那么我们说**不能成功插入线性基**
+
+将x成功插入线性基的第i个位置是，显然有$d[i]\oplus d[a]\oplus d[b]\oplus...=x$
+
+```cpp
+inline bool add(ll x){
+    for(int i=60;i>=0;i--){ //高位到低位
+    	if(x&(1ll<<i)){ //当前位如果有1
+            if(d[i]) x^=d[i];
+           	else{
+    	        d[i]=x; //最终的x是线性基的第i位。
+                return true;
+            }
+        }
+    }
+    flag=1;
+    return false; //插入不成功的情况
+}
+```
+
+
+
+### 求最大/最小值
+
+从最高位开始，取线性基每一位的1进行异或使得答案更大。
+
+```cpp
+ll get_max(){
+    ll res=0;
+    for(int i=60;i>=0;i--)//记得从线性基的最高位开始
+    	res=max(res,res^d[i]);
+    return res;
+ }
+```
+
+集合中的元素能异或出来的最小值显然就是**最小的d[i]**了，因为最小的d[i]异或谁都会变大。
+
+```cpp
+ll get_min(){ //异或最小值 
+	if(flag) return 0;
+	for(int i=0;i<=62;i++){
+		if(b[i]) return b[i];
+	}
+	return 0;
+}
+```
+
+
+
+### 求第k小的值
+
+从一个序列中取任意个元素进行异或，求能异或出的所有数字中第k小的那个。将序列线性基处理，将k转为二进制，如果k的第i为是1，那么ans就异或上线性基中的第i个元素。
+
+```cpp
+void work(){//处理线性基
+	for(int i=1;i<=60;i++)
+		for(int j=1;j<=i;j++)
+			if(d[i]&(1ll<<(j-1)))d[i]^=d[j-1];
+}
+ll k_th(ll k){
+	if(k==1&&tot<n)return 0;//假如k=1，并且原来的序列可以异或出0，就要返回0，tot表示线性基中的元素个数，n表示序列长度
+	if(tot<n)k--;//去掉0的情况，因为线性基中只能异或出不为0的解
+	work();
+	ll ans=0;
+	for(int i=0;i<=60;i++)
+		if(d[i]!=0){
+			if(k%2==1)ans^=d[i];
+			k/=2;
+		}
+    return ans;
+}
+```
+
+
+
+### 判断一个数能否由当前线性基得到
+
+尝试将这个数插入线性基中，如果可以插入，则说明不能被线性基中的元素异或得到（线性无关），如果不能则反之。
+
+
+
+### 模板
+
+```cpp
+//luoguP3812 【模板】线性基
+#include<bits/stdc++.h>
+#define reg register
+using namespace std;
+typedef long long ll;
+const int MN=60;
+ll a[61],tmp[61];
+bool flag;
+void ins(ll x){
+    for(reg int i=MN;~i;i--)
+        if(x&(1ll<<i))
+            if(!a[i]){a[i]=x;return;}
+            else x^=a[i];
+    flag=true;
+}
+bool check(ll x){
+    for(reg int i=MN;~i;i--)
+        if(x&(1ll<<i))
+            if(!a[i])return false;
+            else x^=a[i];
+    return true;
+}
+ll qmax(ll res=0){
+    for(reg int i=MN;~i;i--)
+        res=max(res,res^a[i]);
+    return res;
+}
+ll qmin(){
+    if(flag)return 0;
+    for(reg int i=0;i<=MN;i++)
+        if(a[i])return a[i];
+}
+ll query(ll k){
+    reg ll res=0;reg int cnt=0;
+    k-=flag;if(!k)return 0;
+    for(reg int i=0;i<=MN;i++){
+ 	       for(int j=i-1;~j;j--)
+            if(a[i]&(1ll<<j))a[i]^=a[j];
+        if(a[i])tmp[cnt++]=a[i];
+    }
+    if(k>=(1ll<<cnt))return -1;
+    for(reg int i=0;i<cnt;i++)
+        if(k&(1ll<<i))res^=tmp[i];
+    return res;
+}
+int main(){
+    int n;ll x;scanf("%d",&n);
+    for(int i=1;i<=n;i++)scanf("%lld",&x),ins(x);
+    printf("%lld\n",qmax());
+    return 0;
+}
+```
+
+
+
+### 区间线性基
+
+由数组A={a1,a2,...,an}，由1e5组询问，每次询问al~ar之间的线性基。
+
+##### 思路
+
+首先，将原数组中的数从左到右插入到线性基中，每插入一个数都维护一个新的线性基，用b\[MAXN]\[62]保存。如插入原数组第i位时首先复制第i位的线性基，然后将a[i+1]加入到b\[i+1]\[62]中就直接得到了[1,i+1]之间的线性基。这样每次询问[l,r]之间的线性基时可以先直接得到[1,r]之间的线性基。
+
+##### 如何排除[1,l-1]中插入的数
+
+首先，我们在将数字插入到线性基的同时维护一个pos数组，pos\[i][j]保存插入a[i]后[1,i]之间的线性基第j位的数字是由原数组中哪些数字得到的。其次，在插入时我们要保证原数组中靠右插入的数字尽可能在线性基的高位出现。
+
+
+
+# 高斯-约旦消元法
+
+高斯消元可以将任意矩阵在$O(n^3)$的时间转化为上三角矩阵，然后可计算得行列式为主对角线元素的乘积。
+
+高斯消元的过程如下：
+
+- 输入n*n的方阵A和非齐次项b
+- 枚举每一行i，假设$a_{ii} \neq 0 $:
+  - 对于每个第j（j>i）行，计算$c=-a_{ji}/a_{ii}$
+  - 利用初等行变换，将c倍的第i行加到第j行
+  - 令$b_j = b_j + c*b_i$
+- 如果$a_{ii}=0$，那么找到一行k(k>i)使得$a_{ki} \neq 0$，交换第i和第k行以及$b_i$和$b_k$，并进行第二步。
+- 如果在第3步中没有找到非零元素，则方程组有无穷多解或无解。
+
+
+
+##### 改进思路
+
+对于每一列，先找到最大元素，将该元素所在行与目前行（对角行=列）交换。
+
+对于该列剩下的元素化0，并更新元素所在的行。
+
+不满秩的情况下无解。最终结果将呈现如下状态。
+$$
+\begin{cases}
+x_1=b_1\\
+x_2=b_2\\
+...\\
+x_n=b_n\\
+\end{cases}
+$$
+
+相对于传统的高斯消元，精度更好，代码更简洁。
+
+
+
+##### 模板
+
+```cpp
+	for(int i=1;i<=n;i++){ //对于所有（带系数的）列
+		int mx=i;  
+		for(int j=i+1;j<=n;j++){
+			if(fabs(a[j][i])>fabs(a[mx][i])){ //找到该列最大主元（系数） 
+				mx=j; //记录该行 
+			}
+		}
+		for(int j=1;j<=n+1;j++){
+			swap(a[i][j],a[mx][j]); //交换i和mx两行 
+		}
+		if(!a[i][i]){ //不满秩（对角线无元素） 
+			puts("No Solution");
+			return 0;
+		}
+		for(int j=1;j<=n;j++){ //对于每一行 
+			if(j!=i){ //如果不是对角元素 
+				double tmp=a[j][i]/a[i][i]; //对该元素化0处理 
+				for(int k=i+1;k<=n+1;k++){ 
+					a[j][k]-=a[i][k]*tmp; //更新这一行 
+				}
+			}
+		}
+	}
+	for(int i=1;i<=n;i++){
+		cout<<fixed<<setprecision(2)<<a[i][n+1]/a[i][i]<<endl;
+	}
+```
+
+
+
+### 行列式的应用
+
+**生成树计数**：用基尔霍夫矩阵树定理，之前有篇博客讲到。这里简单讲一下过程：
+
+- 构造图G的拉普拉斯矩阵$L=D-A$,其中$D$是主对角线为各点度数的方阵，$A$是邻接矩阵。
+- 任取$r\in [1,n]$,删去$L$的第$r$行第$r$列，得到其余子式$L_r^*$
+- 求$L^*_r$的行列式$|L_r^*|$，即生成树方案数。
+
+另外，该定理对重边、有向图、有权图的情况均有效（变换情况参考胡泽聪的ppt）。
+
+
+
+### 参考资料
+
+线性代数、概率与期望 ——胡泽聪
+
+https://blog.csdn.net/a_forever_dream/article/details/83654397
+
+https://www.bilibili.com/video/BV1ct411c7EP
+
+https://www.luogu.com.cn/problem/solution/P3812

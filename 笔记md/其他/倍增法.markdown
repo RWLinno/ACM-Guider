@@ -1,0 +1,254 @@
+---
+title : 倍增法 
+date : 2022-3-15 
+tags : ACM,杂项，算法基础 
+author : Linno
+---
+
+
+
+
+
+# 倍增法
+
+倍增法(binary lifting)，是一种每次将情况翻倍从而将线性处理转化为对数级处理，进而极大优化时间复杂度的方法。
+
+### 基本应用
+
+##### 解决RMQ问题（ST表）
+
+对于区间$[i,i+2^k]$求最大/最小值，实际上就是对前$[i,i+2^{k-1}]和[i+2^{k-1},i+2^k]$两个区间求最大/最小值。如果我们预处理出每个数字i加上$2^p$次幂范围的答案，那么就可以O(1)得到 $[i,i+2^{p+1}]$区间的结果。阈值是O(nlogn)的预处理。
+
+```java
+//luoguP3865 【模板】ST 表
+#include<bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+
+ll n,m,l,r,lg2[32],fang[32],a[1000005][32];
+
+int main(){
+   
+	scanf("%lld%lld",&n,&m);
+	lg2[0]=-1;for(int i=1;i<=31;i++) lg2[i]=lg2[i/2]+1;
+	fang[0]=1;for(int i=1;i<=31;i++) fang[i]=fang[i-1]*2;
+	for(int i=1;i<=n;i++) scanf("%lld",&a[i]);
+	for(int j=1;j<=31;j++){
+   
+		for(int i=1;i+fang[j]-1<=n;i++){
+   
+			a[i][j]=max(a[i][j-1],a[i+fang[j-1]][j-1]);
+		}
+	}
+	for(int i=1;i<=m;i++){
+   
+		scanf("%lld%lld",&l,&r);
+		int len=log2(r-l+1);
+		ll ans=max(a[l][len],a[r-fang[len]+1][len]);
+		printf("%lld\n",ans);
+	}
+	return 0;
+}
+```
+
+##### 求LCA
+
+我们设某一点的第k k k级父亲就是向上跳$2^k$次所到达的结点，那么对于两点求最近公共祖先就可以用O(logn)来解决。
+
+```java
+//luoguP3379 【模板】最近公共祖先（LCA）
+#include<iostream>
+#include<string.h>
+#include<vector>
+using namespace std;
+const int maxn=500005;
+int n,m,rt;
+int d[maxn],f[maxn][22];
+int lg[maxn];
+vector<int>G[maxn];
+
+void dfs(int u,int fa){
+   
+	d[u]=d[fa]+1;
+	f[u][0]=fa;
+	//f[u][0]是父亲，然后是第二个祖先，第四个祖先，。。。以此类推 
+	for(int i=0;i<lg[d[u]];++i) f[u][i+1]=f[f[u][i]][i];
+	for(int i=0;i<G[u].size();i++) if(G[u][i]!=fa) dfs(G[u][i],u);
+}
+
+int lca(int x,int y){
+   
+	if(d[x]<d[y]) swap(x,y);            //x的深度大
+	//倍增【1】：先跳到同一深度。只要前者深度大于后者，前者跳到第2^【log2(深度差)-1】（即：深度差 - 1）个祖先 
+	//while(d[x]>d[y]) x = f[x][lg[d[x]-d[y]]-1]; 
+	for(int i=20;i>=0;i--) if(d[f[x][i]]>=d[y]) x=f[x][i];
+	if(x == y) return x;               //此时深度相同。两者相等的话说明原先的y是x的祖先。此时的x或y就是lca
+	//倍增【2】：找lca。【二进制思维】从大到小尝试往上跳 
+	//如果两者祖先不相等就往上跳：x跳到第2^【log2(x的深度)-1】（即：x的深度-1）个祖先 
+	//鉴于x和y的深度一直一样，因此如果祖先相等，说明可能超过了lca的位置。
+	for(int k = lg[d[x]]-1;k>=0;--k)           
+		if(f[x][k]!=f[y][k]) x = f[x][k],y = f[y][k]; 
+	return f[x][0];                   
+}
+
+void init(int n){
+   
+	memset(d,0,sizeof(d));
+	memset(f,0,sizeof(f));
+	for(int i=1;i<=n;++i) G[i].clear();
+} 
+
+int main(){
+   
+	//int t;
+	//scanf("%d",&t);
+	scanf("%d%d%d",&n,&m,&rt);
+	for(int i=1;i<=n;++i) lg[i] = lg[i-1] + (1<<lg[i-1] == i);
+	//init(n);
+	int x,y,k;
+	for(int i=1;i<n;++i) scanf("%d%d",&x,&y),G[x].push_back(y),G[y].push_back(x);
+	// 常数优化，求出 log2(x) + 1 
+	dfs(rt,0);
+	for(int i=1;i<=m;++i) scanf("%d%d",&x,&y),printf("%d\n",lca(x,y));
+}
+```
+
+##### P1081 [NOIP2012 提高组] 开车旅行
+
+我认为这是一道好题。可利用倍增去优化DP，思路非常灵活。
+
+这是洛谷题解置顶的代码，码量我感觉还是比较大的，但是写得很好看，就拿来用了。
+
+```java
+#include<bits/stdc++.h>
+using namespace std;
+const int N=1e5+200,INF=2e9;
+struct City{
+   
+    int id,al;
+    friend bool operator < (City a,City b){
+   
+        return a.al<b.al; 
+    }
+};
+
+int n,m,x0,la,lb,ansid;
+int h[N],s[N],x[N];
+int f[20][N][2],da[20][N][2],db[20][N][2];
+//f[i,j,k]表示从城市j出发，行驶2^i天，k先开车,最终达到的城市 
+//da,db则分别表示a,b行驶的路程长度 
+double ans=INF*1.0;
+multiset<City>q; //用于存下一个目标城市 
+
+void calc(int S,int X){
+   
+    int p=S;
+    la=0,lb=0;
+    for(int i=18;i>=0;i--)
+        if(f[i][p][0] && la+lb+da[i][p][0]+db[i][p][0]<=X)
+        {
+   
+            la+=da[i][p][0];
+            lb+=db[i][p][0];
+            p=f[i][p][0];
+        }
+}
+
+void pre(){
+    //2、预处理 
+    h[0]=INF,h[n+1]=-INF; 
+    q.insert({
+   0,INF}),q.insert({
+   0,INF}); 
+    q.insert({
+   n+1,-INF}),q.insert({
+   n+1,-INF});
+    for(int i=n;i;i--){
+    //使用集合找到两个最近的前驱和后继 
+        int ga,gb;
+        City now;
+        now.id=i,now.al=h[i];
+        q.insert(now);
+        set<City>::iterator p=q.lower_bound(now);
+        p--;
+        int lt=(*p).id,lh=(*p).al;//last
+        p++,p++;
+        int ne=(*p).id,nh=(*p).al;//next
+        p--;
+        if(abs(nh-h[i])>=abs(h[i]-lh)){
+   
+            gb=lt;
+            p--,p--;
+            if(abs(nh-h[i])>=abs(h[i]-(*p).al)) ga=(*p).id;
+            else ga=ne;
+        }else{
+   
+            gb=ne;
+            p++,p++;
+            if(abs((*p).al-h[i])>=abs(h[i]-lh)) ga=lt;
+            else ga=(*p).id;
+        }
+        f[0][i][0]=ga,f[0][i][1]=gb;
+        da[0][i][0]=abs(h[i]-h[ga]);
+        db[0][i][1]=abs(h[i]-h[gb]);//3、DP初值
+    }
+    for(int i=1;i<=18;i++)  //dp转移过程 
+        for(int j=1;j<=n;j++)
+            for(int k=0;k<2;k++)
+                if(i==1){
+   
+                    f[1][j][k]=f[0][f[0][j][k]][1-k];
+                    da[1][j][k]=da[0][j][k]+da[0][f[0][j][k]][1-k];
+                    db[1][j][k]=db[0][j][k]+db[0][f[0][j][k]][1-k]; 
+                }else{
+   
+                    f[i][j][k]=f[i-1][f[i-1][j][k]][k];
+                    da[i][j][k]=da[i-1][j][k]+da[i-1][f[i-1][j][k]][k];
+                    db[i][j][k]=db[i-1][j][k]+db[i-1][f[i-1][j][k]][k];
+                }//3、倍增优化DP
+}
+
+void input(){
+    //数据读入 
+	ios::sync_with_stdio(0);
+	cin.tie(0);cout.tie(0);
+    cin>>n;
+    for(int i=1;i<=n;i++) cin>>h[i];
+    cin>>x0>>m;
+    for(int i=1;i<=m;i++) cin>>s[i]>>x[i];
+}
+
+signed main(){
+   
+	input();
+    pre();
+    for(int i=1;i<=n;i++){
+    //4、求解问题1
+        calc(i,x0);
+        double nowans=(double)la/(double)lb;
+        if(nowans<ans){
+   
+            ans=nowans;
+            ansid=i;
+        }else if(nowans==ans && h[ansid]<h[i]) ansid=i;
+    }
+    cout<<ansid<<endl;
+    for(int i=1;i<=m;i++){
+    //5、求解问题2
+        calc(s[i],x[i]);
+        cout<<la<<" "<<lb<<"\n";
+    }
+    return 0;
+}
+```
+
+### 参考文献
+
+https://oi-wiki.org/basic/binary-lifting/
+
+https://www.cnblogs.com/YangKun-/p/12524015.html
+
+https://blog.csdn.net/jarjingx/article/details/8180560
+
+https://www.luogu.com.cn/blog/TEoS/p1081-kai-ju-lv-xing
+

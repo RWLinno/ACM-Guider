@@ -1,0 +1,357 @@
+---
+title : 平衡树专题之替罪羊树
+date : 2022-2-8
+tags : ACM,数据结构，平衡树
+author : Linno
+---
+
+
+
+### 替罪羊树
+
+替罪羊树是一种非常优(bao)雅(li)的平衡树，与普通平衡树的区别是，它维护平衡的方式不是旋转，而是重构。尽管重构的过程是非常暴力的，复杂度依然是很好的$O(logn)$
+
+
+
+##### 准备工作
+
+需要储存的信息：左右子树编号、当前结点的值、以当前结点为根的树的大小和实际大小、删除标记。
+
+```cpp
+struct Node
+    int l,r,val; //左右子树编号和结点的值
+    int sz,fact; //树的大小和<实际大小>
+    bool exist; //删除标记
+}tzy[maxn]
+```
+
+
+
+##### 新建节点
+
+在所在结点now建立一个值为val的结点。
+
+```cpp
+void newnode(int &now,int val){
+    now=++cnt;
+    tzy[now].val=val;
+    tzy[now].sz=tzy[now].fact=1;
+    tzy[now].ex=1;
+}
+```
+
+
+
+##### 插入结点
+
+与平衡树基本操作一致。
+
+```cpp
+void ins(int &now,int val){
+    if(!now){
+        newnode(now,val);//从now开始插入val
+        check(root,now); //从root到now检查是否重构  
+        return;
+    }
+    tzy[now].sz++;
+    tzy[now].fact++;
+    if(val<tzy[now].val) ins(tzy[now].l,val); //往左边插入
+    else ins(tzy[now].r,val); //往右边插入
+}
+```
+
+
+
+##### 删除操作
+
+在将要被删除的结点上打一个标记，称之为“惰性删除”。
+
+```cpp
+void del(int &now,int val){
+    if(tzy[now].exist&&tzy[now].val==val){
+        tzy[now].exist=false;  //打删除标记
+        tzy[now].fact--;
+        check(root,now)//检查是否平衡
+        return;
+    }
+    tzy[now].fact--; 
+    if(val<tzy[now].val) del(tzy[now].l,val);
+    else del(tzy[now].r,val);
+}
+```
+
+
+
+##### 检查并判断是否重构
+
+进行插入和删除之后需要检查树是否需要重构。
+
+需要重构的条件：当前结点的左子树或右子树的大小大于当前结点的大小乘一个平衡因子alpha（一般在0.5~1之间）
+
+平衡因子alpha必须取0.5~1之间的数比如0.75
+
+这里解释为什么要区分size和fact：被删除结点的过多也会影响后续操作的效率。
+
+```cpp
+bool imbalance(int now){ //判断当前结点是否平衡
+    if(max(tzy[tzy[now].l].size,tzy[tzy[now].r].size)>tzy[now].size*alpha||tzy[now].size-tzy[now].fact>tzy[now].size*0.3) return true;
+  return false;
+}
+
+void update(int now,int end){
+    if(!now) return;
+    if(tzy[end].val<tzy[now].val) update(tzy[now].l,end);
+    else update(tzy[now].r,end);
+    tzy[now].size=tzy[tzy[now].l].size+tzy[tzy[now].r].size+1;
+}
+
+void check(int &now,int end){ //检查当前结点到end的树是否平衡 
+    if(now==end) return;
+    if(imbalence(now)){ //如果不平衡
+        rebuild(now); //重构now结点
+        update(root,now); //更新
+        return;
+    }else{  //检查下一个结点
+        if(tzy[end].val<tzy[now].val) check(tzy[now].l,end);
+        else check(tzy[now].r,end);
+    }
+}
+```
+
+
+
+##### 重构
+
+这个过程非常暴力，同时是替罪羊树的**核心**。大致思路是：首先将当前子树进行中序遍历拉成直线，然后分治拎起来。
+
+```cpp
+vector<int>v; //先把子树的所有结点放进vector中
+void ldr(int now){ //中序遍历
+    if(!now) reuturn;
+    ldr(tyz[now].l);
+    if(tzy[now].exist) v.push_back(now);
+    ldr(tzy[now].r);
+}
+
+void lift(int l,int r,int &now){
+    if(l==r){
+        now=v[l];
+        tzy[now].l=tzy[now].r=0;
+        tzy[now].sz=tzy[now].fact=1;
+        return;
+    }
+    int m=l+r>>1;
+    while(l<m&&tzy[v[m]].val==tzy[v[m-1]].val) m--;
+    now=v[m];
+    if(l<m) lift(l,m-1,tzy[now].l); //抬左区间
+    else tzy[now].l=0;
+    lift(m+1,r,tzy[now].r); //抬有区间
+    tzy[now].sz=tzy[tzy[now].l].sz+tzy[tzy[now].r].sz+1;
+    tzy[now].fact=tzy[tzy[now].l].fact+tzy[tzy[now].r].fact+1; //这个也要更新
+}
+
+void rebuild(int &now){
+    v.clear();
+    ldr(now);  //求中序遍历
+    if(v.empty()){
+        now=0;
+        return;
+    }
+    lift(0,v.size()-1,now);
+}
+
+void update(int now,int end){ //有点线段树内味
+    if(!now) return;
+    if(tzy[end].val<tzy[now].val) update(tzy[now].l,end);
+    else update(tzy[now].r,end);
+    tzy[now].sz=tzy[tzy[now].l].sz+tzy[tzy[now].r].sz+1;
+}
+```
+
+
+
+##### 查询排名/数
+
+与一般平衡树的操作基本一致，不过进行处理的是fact而不是size。
+
+```cpp
+int getrank(int val){
+    int now=root,rank=1;
+    while(now){
+        if(val<=tzy[now].val) now=tzy[now].l;
+        else{
+            rank+=tzy[now].exist+tzy[tzy[now].l].fact;
+            now=tzy[now].r;
+        }
+    }
+    return rank;
+}
+
+int getnum(int rank){
+    int now=root;
+    while(now){
+        if(tyz[now].exist&&tzy[tzy[now].l].fact+tzy[now].exist==rank) break;
+        else if(tzy[tzy[now].l].fact>=rank) now=tzy[now].l;
+        else{
+            rank-=tzy[tzy[now].l].fact+tzy[now].exist;
+            now=tzy[now].r;
+        }
+    }
+    return tzy[now].val;
+}
+```
+
+
+
+##### 求前驱和后继
+
+```cpp
+printf(getnum(getrank(x)-1));//直接求前驱
+printf(getnum(getrank(x+1)));//直接求后继
+```
+
+
+
+### 模板
+
+##### luoguP3369 【模板】普通平衡树
+
+```cpp
+#include<bits/stdc++.h>
+using namespace std;
+const int N=1e5+7; 
+const double alpha=0.75;
+
+int n,op,x,st,rt,cnt,tot,cur[N+5],Void[N+5];
+
+struct node{
+    int ch[2],ex,v,sz,fc;
+}tzy[N+5];
+
+inline void Init(){  //初始化 
+    tot=0;
+    for(register int i=N-1;i;--i) Void[++tot]=i; //用来回收垃圾的 
+}
+
+inline bool balance(int x){ //是否平衡 
+    return (double) tzy[x].fc*alpha>(double)max(tzy[tzy[x].ch[0]].fc,tzy[tzy[x].ch[1]].fc);
+}
+
+inline void Build(int x){ //新建节点 
+    tzy[x].ch[0]=tzy[x].ch[1]=0,tzy[x].sz=tzy[x].fc=1;
+}
+
+inline void Insert(int &x,int v){ //插入结点 
+    if(!x){ 
+        x=Void[tot--],tzy[x].v=v,tzy[x].ex=1,Build(x);
+        return;
+    }
+    ++tzy[x].sz,++tzy[x].fc; 
+    if(v<=tzy[x].v) Insert(tzy[x].ch[0],v);
+    else Insert(tzy[x].ch[1],v);
+}
+inline void PushUp(int x){ //更新操作 
+    tzy[x].sz=tzy[tzy[x].ch[0]].sz+tzy[tzy[x].ch[1]].sz+1;
+	tzy[x].fc=tzy[tzy[x].ch[0]].fc+tzy[tzy[x].ch[1]].fc+1;	
+}
+inline void Traversal(int x){ //中序遍历 
+    if(!x) return;
+    Traversal(tzy[x].ch[0]);
+    if(tzy[x].ex) cur[++cnt]=x;
+    else Void[++tot]=x; //废品回收站 
+    Traversal(tzy[x].ch[1]);
+}
+inline void SetUp(int l,int r,int &x){ //将链拎起来成树 
+    int mid=l+r>>1;x=cur[mid];
+    if(l==r){
+        Build(x);
+        return;
+    }
+    if(l<mid) SetUp(l,mid-1,tzy[x].ch[0]);
+    else tzy[x].ch[0]=0;
+    SetUp(mid+1,r,tzy[x].ch[1]),PushUp(x);
+}
+inline void ReBuild(int &x){ //暴力重构 
+    cnt=0,Traversal(x);
+    if(cnt) SetUp(1,cnt,x);
+    else x=0;
+}
+inline void check(int x,int v){ //检查x到v的路径 
+    int s=((v<=tzy[x].v)?0:1);
+    while(tzy[x].ch[s]){
+        if(!balance(tzy[x].ch[s])) {
+            ReBuild(tzy[x].ch[s]);
+            return;
+        }
+        x=tzy[x].ch[s],s=v<=tzy[x].v?0:1;
+    }
+}
+inline int get_rank(int v){ //获取排名 
+    int x=rt,rk=1;
+    while(x){
+        if(tzy[x].v>=v) x=tzy[x].ch[0];
+        else rk+=tzy[tzy[x].ch[0]].fc+tzy[x].ex,x=tzy[x].ch[1];
+    }
+    return rk;
+}
+inline int get_val(int rk){ //获取第rk大的数 
+    int x=rt;
+    while(x){
+        if(tzy[x].ex&&tzy[tzy[x].ch[0]].fc+1==rk) return tzy[x].v;
+        else if(tzy[tzy[x].ch[0]].fc>=rk) x=tzy[x].ch[0];
+        else rk-=tzy[x].ex+tzy[tzy[x].ch[0]].fc,x=tzy[x].ch[1];
+    }
+}
+inline void Delete(int &x,int rk){ //下传删除 
+    if(tzy[x].ex&&!((tzy[tzy[x].ch[0]].fc+1)^rk)){
+        tzy[x].ex=0,--tzy[x].fc;
+        return;
+    }
+    --tzy[x].fc;
+    if(tzy[tzy[x].ch[0]].fc+tzy[x].ex>=rk) Delete(tzy[x].ch[0],rk);
+    else Delete(tzy[x].ch[1],rk-tzy[x].ex-tzy[tzy[x].ch[0]].fc);
+}
+
+inline void del(int v){ //删除操作 
+    Delete(rt,get_rank(v));
+    if(!balance(rt)) ReBuild(rt); //不平衡则需要重构 
+}
+
+signed main(){
+    ios::sync_with_stdio(0);
+    cin.tie(0);cout.tie(0);
+    cin>>n;
+    Init();
+    while(n--){
+  		cin>>op>>x;
+		if(op==1){
+			st=rt;
+			Insert(rt,x);
+			check(st,x);
+		}else if(op==2){
+			del(x);
+		}else if(op==3){
+			cout<<get_rank(x)<<"\n";
+		}else if(op==4){
+			cout<<get_val(x)<<"\n";
+		}else if(op==5){
+			cout<<get_val(get_rank(x)-1)<<"\n";
+		}else if(op==6){
+			cout<<get_val(get_rank(x+1))<<"\n";
+		}
+	}
+    return 0;
+}
+```
+
+
+
+### 参考材料
+
+https://blog.csdn.net/a_forever_dream/article/details/81984236
+
+https://www.bilibili.com/video/BV1Wt411L7te
+
+https://oi-wiki.org/ds/sgt/
+
+https://www.cnblogs.com/chenxiaoran666/p/ScapegoatTree.html

@@ -1,0 +1,522 @@
+---
+title : 莫比乌斯反演
+date : 2021-8-19
+tags : ACM,数学
+author : Linno
+
+---
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/5861a807d11d4b0bad51b2cbbf21c439.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA57yE5ruF,size_20,color_FFFFFF,t_70,g_se,x_16#pic_center)
+
+
+### 前置芝士
+
+#### 数论函数
+
+$$
+\begin{cases}
+单位函数\varepsilon=\begin{cases}1，n=1\\0,otherwise\end{cases}\\
+幂函数Id_k(n)=n^k,当k=1时为恒等函数Id(n)，当k=1时为常函数\\
+除数函数\sigma_k(n)=\sum_{d|n}d^k，当k=1时为因数和函数\sigma (n)，当k=0时为因数个数函数\sigma_o（n）\\
+欧拉函数\varphi(n)
+\end{cases}
+$$
+
+上述函数均为积性函数，满足$f(1)=1$，且当$a,b$互质时，有$f(a)f(b)=f(ab)$
+
+
+
+#### 数论分块
+
+可以快速计算含有除法向下取整的和式。
+
+如果可以在$O(1)$内算出$f(r)-f(l)$或已经预处理出$f$的前缀和时，数论分块可以在$O(\sqrt n)$的时间内计算上述和式的值。
+
+
+
+##### 富比尼定理
+
+引理1：$\forall a,b,c\in \Z,[\frac{a}{bc}]=[\frac{[\frac{a}{b}]}{c}]$
+
+引理2：$\forall n\in \N_+,|\{[\frac{n}{d}]|d\in \N_+,d\le n\}|\le [2\sqrt n]$
+
+##### 数论分块结论
+
+对于常数n，使得式子$[\frac{n}{i}]=[\frac{n}{j}]$
+
+成立的最大的满足的$i\le j\le n的j的值为[\frac{n}{[\frac{n}{i}]}]$,即$[\frac{n}{i}]$所在的块的右端点为$[\frac{n}{[\frac{n}{i}]}]$
+
+
+
+##### [UVa11526 H(n)](https://onlinejudge.org/index.php?option=com_onlinejudge&Itemid=8&category=27&page=show_problem&problem=2521)
+
+```cpp
+int H(int n){
+	int res=0,l=1,r;
+	while(l<=n){
+		r=n/(n/l);
+		res+=(r-l+1)*(n/l);//原式为res=(res+n/i)
+		l=r+1;//处理一些连续的块
+	}
+	return res;
+}
+```
+
+##### [CQOI2007 余数求和](https://www.luogu.com.cn/problem/P2261)
+
+计算$G(n,k)=\sum_{i=1}^nk\mod i$
+
+```c++
+int G(int n,int k){
+	int res=n*k,l=1,r;
+	while(l<=n){
+		if(k/l!=0) r=min(k/(k/l),n);
+		else r=n;
+		res-=(r-l+1)*(k/l)*(l+r)/2; 
+		l=r+1;
+	}
+	return res;
+}
+```
+
+
+
+#### 狄利克雷卷积
+
+定义两个数论函数$f,g$的Dirichlet卷积为$(f*g)(n)=\sum_{d|n}f(d)g(\frac{n}{d})$
+
+对于卷积前n项：$h[i]=\sum_{d|i}f[d]*g[\frac{i}{d}]$
+
+```c++
+F(i,1,n) h[i]=0;
+F(i,1,n){
+    F(j,1,n/i) h[i*j]=(h[i*j]+f[i]*g[j]%mod)%mod;
+}
+F(i,1,n) printf("%d ",h[i]);
+```
+
+
+
+##### 快速幂优化
+
+```c++
+while(k){ //卷积k次之后的结果
+    if(k&1){
+        tot++;
+        if(tot==1){F(i,1,n) g[i]=t[i];}
+        else{
+            F(i,1,n) now[i]=0;
+            F(i,1,n){
+                F(j,1,n/i) now[i*j]=(now[i*j]+g[i]*t[j]%M)%M;
+            }
+            F(i,1,n) g[i]=now[i];
+        }
+    }
+    F(i,1,n) now[i]=0;
+    F(i,1,n){
+        F(j,1,n/i) now[i*j]=(now[i*j]+t[i]*t[j]%M)%M;
+    }
+    F(i,1,n) t[i]=now[i];
+    k>>=1;
+}
+```
+
+
+
+# 莫比乌斯反演
+
+### 定理
+
+$$
+F(n)和f(n)是定义在非负整数集合上的两个函数，\\
+并且满足条件F(n)=\sum_{d|n}f(d)，那么我们得到结论：\\
+f(n)=\sum_{d|n}\mu(d)F(\frac{n}{d})\\
+其中莫比乌斯函数\mu(d)的定义：\\
+\mu(n)=\begin{cases}
+1,n=1\\
+0,n含有平方因子\\
+(-1)^k，k为n的本质不同质因子个数
+\end{cases}
+$$
+
+
+
+### 性质
+
+$(1)对于任意正整数n，有\sum_{d|n}\mu(d)=\begin{cases}1,n=1\\0,n>1\end{cases}$
+
+$(2)对于任意正整数n，有\sum_{d|n}\frac{\mu(d)}{d}=\frac{\varphi(n)}{n}$
+
+##### 莫比乌斯变换
+
+$如果有f(n)=\sum_{d|n}g(d),那么有g(n)=\sum_{d|n}\mu(d)f(\frac{n}{d})$
+
+这种形式下f(n)成为数论g(n)的莫比乌斯变换，数论函数g(n)成为f(n)的莫比乌斯逆变换（反演）
+
+
+
+##### 常用结论
+
+$①[gcd(i,j)=1]=\sum_{d|gcd(i,j)}\mu(d)$我们也可以简记为$\sum_{d|n}\mu(d)=[n=1]$
+
+$②d(i*j)=\sum_{x|i}\sum_{y|j}[gcd(x,y)=1],其中d(i)为i的约数个数$
+
+$③\sum_{i=1}^{n}\sum_{j=1}^{m}[gcd(i,j)=k]=\sum_{i=1}^{[\frac{n}{k}]}\sum_{j=1}^{[\frac{m}{k}]}[gcd(i,j)=1]$
+$$
+\sum_{i=1}^n\sum_{j=1}^m[gcd(i,j)=1](n<m)\\
+=\sum_{i=1}^n\sum_{j=1}\sum_{d|gcd(i,j)}\mu(d)\\
+=\sum_{d=1}^n\mu(d)*[\frac{n}{d}]*[\frac{m}{d}],可以数论分块
+$$
+$④\sum_{i=1}^n\sum_{j=1}^m lcm(i,j)=\sum_{d=1}^nd\sum_{k=1}^{[\frac{n}{d}]}\mu(k)*k^2\sum_{i=1}^{[\frac{n}{dk}]}i\sum_{j=1}^{[\frac{m}{dk}]}j$
+
+
+
+
+
+##### 线性筛求莫比乌斯反演函数
+
+```C++
+void init(){
+	memset(vis,0,sizeof(vis));
+	mu[1]=1;
+	cnt=0;
+	for(int i=2;i<N;i++){
+		if(!vis[i]) prime[cnt++]=i;
+		mu[i]=-1; 
+	}
+	for(int j=0;j<cnt&&i*prime[j]<N;j++){
+		vis[i*prime[j]]=1;
+		if(i%prime[j]) mu[i*prime[j]]=-mu[i];
+		else{
+			mu[i*prime[j]]=0;
+			break;
+		}
+	}
+}
+```
+
+
+
+##### 证明莫比乌斯反演定理
+
+$\sum_{d|n}\mu(d)F(\frac{n}{d})=\sum_{d|n}\mu(d)\sum_{d'|\frac{n}{d}}f(d')=\sum_{d'|n}f(d')\sum_{d|\frac{n}{d'}}\mu(d)=f(n)$
+
+
+
+##### luogu P2522 [HAOI2011]Problem b
+
+$求值\sum_{i=x}^n\sum_{j=y}^m [gcd(i,j)=k]$
+
+可容斥分为四块，每块化简为$\sum_{d=1}^{min([\frac{n}{k}],[\frac{m}{k}])}\mu(d)[\frac{n}{kd}][\frac{m}{kd}]$
+
+时间复杂度$O(N+T\sqrt n)$
+
+```cpp
+#include<bits/stdc++.h>
+#define inf 0x3f3f3f3f
+#define int long long
+using namespace std;
+const int N=1e6+7;
+
+int is_pri[N],pri[N],mu[N],phi[N],sum[N],cnt;
+
+void init(){ //预处理 
+	memset(is_pri,1,sizeof(is_pri));
+	mu[1]=1;phi[1]=1;sum[1]=1;
+	cnt=0;
+	for(int i=2;i<N;i++){
+		if(is_pri[i]){
+			pri[++cnt]=i;
+			phi[i]=i-1;
+			mu[i]=-1;
+		}
+		for(int j=1;j<=cnt&&i*pri[j]<N;j++){
+			is_pri[i*pri[j]]=0;
+			if(i%pri[j]){
+				mu[i*pri[j]]=-mu[i];
+				phi[i*pri[j]]=phi[i]*(pri[j]-1);
+			}else{
+				phi[i*pri[j]]=phi[i]*pri[j];
+				mu[i*pri[j]]=0;
+				break;
+			}
+		}
+		sum[i]=sum[i-1]+mu[i]; //前缀和 
+	}
+}
+
+int F(int n,int m,int k){
+	int res=0;
+	/*数论分块的原型 
+	for(int d=1;d<=min(n,m);d++){
+		res+=mu[d]*(n/d)*(m/d);
+	}*/
+	for(int l=1,r;l<=min(n,m);l=r+1){
+		r=min(n/(n/l),m/(m/l));
+		res+=(sum[r]-sum[l-1])*(n/l)*(m/l);
+	} 
+	return res;
+}
+
+signed main(){
+	init();
+	int n,a,b,c,d,k,ans;
+	cin>>n;
+	while(n--){
+		cin>>a>>b>>c>>d>>k;
+		ans=F(b/k,d/k,k)-F((a-1)/k,d/k,k)-F(b/k,(c-1)/k,k)+F((a-1)/k,(c-1)/k,k);//容斥 
+		cout<<ans<<"\n";
+	}
+	return 0;
+}
+```
+
+
+
+##### luogu P1829 [国家集训队]Crash的数字表格
+
+求值$ \sum_{i=1}^n\sum_{j=1}^m\operatorname{lcm}(i,j)\qquad (n,m\leqslant 10^7) $
+$$
+原式等于 \sum_{i=1}^n\sum_{j=1}^m\frac{i\cdot j}{\gcd(i,j)} \\
+= \sum_{d=1}^n d\cdot\sum_{i=1}^{\lfloor\frac{n}{d}\rfloor}\sum_{j=1}^{\lfloor\frac{m}{d}\rfloor}[\gcd(i,j)=1]\ i\cdot j \\
+= \sum_{d=1}^n\sum_{d\mid i}^n\sum_{d\mid j}^m\mu(d)\cdot i\cdot j\\
+令  g(n,m)=\sum_{i=1}^n\sum_{j=1}^m i\cdot j=\frac{n\cdot(n+1)}{2}\times\frac{m\cdot(m+1)}{2} \\
+\operatorname{sum}(n,m)=\sum_{d=1}^n\mu(d)\cdot d^2\cdot g(\lfloor\frac{n}{d}\rfloor,\lfloor\frac{m}{d}\rfloor) \\
+ 原式=\sum_{d=1}^n d\cdot\operatorname{sum}(\lfloor\frac{n}{d}\rfloor,\lfloor\frac{m}{d}\rfloor) ,可用数论分块和线性筛解决。
+$$
+
+```c++
+#include<bits/stdc++.h>
+#define inf 0x3f3f3f3f
+//#define int long long
+using namespace std;
+
+const int N=1e7+7;
+const int mod=20101009;
+
+int is_pri[N],pri[N],g[N],mu[N],sum[N],d[N],t[N],cnt=0;
+
+int Sum(int x,int y){
+	return (x*(x+1)/2%mod)*(y*(y+1)/2%mod)%mod;
+}
+
+int func(int x,int y){
+	int res=0;
+	for(int i=1,j;i<=min(x,y);i=j+1){
+		j=min(x/(x/i),y/(y/i));
+		res=(res+(sum[j]-sum[i-1]+mod)*Sum(x/i,y/i)%mod)%mod;
+	}
+	return res;
+}
+
+int solve(int x,int y){
+	int res=0;
+	for(int i=1,j;i<=min(x,y);i=j+1){
+		j=min(x/(x/i),y/(y/i));
+		res=(res+(j-i+1)*(i+j)/2%mod*func(x/i,y/i)%mod)%mod;
+	}
+	return res;
+}
+
+void init(){
+	memset(is_pri,1,sizeof(is_pri));
+	mu[1]=1,d[1]=1,is_pri[1]=0;
+	for(int i=2;i<N;i++){
+		if(is_pri[i]){
+			pri[++cnt]=i;
+			mu[i]=-1;
+			d[i]=2;
+			t[i]=1;
+		}
+		for(int j=1;j<=cnt&&pri[j]*i<N;j++){
+			is_pri[pri[j]*i]=0; 
+			if(i%pri[j]){
+				mu[i*pri[j]]=-mu[i];
+				t[pri[j]*i]=1; //最小质因子出现的次数 
+				d[pri[j]*i]=d[i]<<1;//因子个数
+			}else{
+				t[pri[j]*i]=t[i]+1; 
+				d[pri[j]*i]=d[i]/(t[i]+1)*(t[i]+2);
+				mu[i*pri[j]]=0;
+				break;
+			}
+		}
+	}
+	for(int i=2;i<N;i++) d[i]+=d[i-1];
+}
+
+int solve(int n,int m){
+	int res=0;	
+	for(int p=1;p<=min(n,m);p++){
+		res+=mu[p]*d[n/p]*d[m/p]; 
+	}
+	return res;
+}
+
+signed main(){
+	init();
+	int n,m,T;
+	cin>>T;
+	while(T--){
+		cin>>n>>m;
+		cout<<solve(n,m)<<"\n";
+	}
+	return 0;
+}
+```
+
+
+
+##### luoguP3327 [SDOI2015]约数个数和
+
+ $求\sum_{i=1}^n\sum_{j=1}^md(i\cdot j)\left(d(n)=\sum_{i \mid n}1\right) n,m,T\leq5\times10^4$ 
+
+其中d(n)表示n的约数个数。
+$$
+\begin{aligned} d(i\cdot j)=&\sum_{x \mid i}\sum_{y \mid j}[\gcd(x,y)=1]\\ =&\sum_{x \mid i}\sum_{y \mid j}\sum_{p \mid \gcd(x,y)}\mu(p)\\ =&\sum_{p=1}^{min(i,j)}\sum_{x \mid i}\sum_{y \mid j}[p \mid \gcd(x,y)]\cdot\mu(p)\\ =&\sum_{p \mid i,p \mid j}\mu(p)\sum_{x \mid i}\sum_{y \mid j}[p \mid \gcd(x,y)]\\ =&\sum_{p \mid i,p \mid j}\mu(p)\sum_{x \mid \frac{i}{p}}\sum_{y \mid \frac{j}{p}}1\\ =&\sum_{p \mid i,p \mid j}\mu(p)d\left(\frac{i}{p}\right)d\left(\frac{j}{p}\right)\\ \end{aligned}
+$$
+将上述式子代回原式
+$$
+ \begin{aligned} &\sum_{i=1}^n\sum_{j=1}^md(i\cdot j)\\ =&\sum_{i=1}^n\sum_{j=1}^m\sum_{p \mid i,p \mid j}\mu(p)d\left(\frac{i}{p}\right)d\left(\frac{j}{p}\right)\\ =&\sum_{p=1}^{min(n,m)} \sum_{i=1}^n\sum_{j=1}^m [p \mid i,p \mid j]\cdot\mu(p)d\left(\frac{i}{p}\right)d\left(\frac{j}{p}\right)\\ =&\sum_{p=1}^{min(n,m)} \sum_{i=1}^{\left\lfloor\frac{n}{p}\right\rfloor}\sum_{j=1}^{\left\lfloor\frac{m}{p}\right\rfloor} \mu(p)d(i)d(j)\\ =&\sum_{p=1}^{min(n,m)}\mu(p) \sum_{i=1}^{\left\lfloor\frac{n}{p}\right\rfloor}d(i) \sum_{j=1}^{\left\lfloor\frac{m}{p}\right\rfloor}d(j)\\ =&\sum_{p=1}^{min(n,m)}\mu(p) S\left(\left\lfloor\frac{n}{p}\right\rfloor\right) S\left(\left\lfloor\frac{m}{p}\right\rfloor\right) \left(S(n)=\sum_{i=1}^{n}d(i)\right)\\ \end{aligned} 
+$$
+那么$O(n)$预处理前缀和，$O(\sqrt n)$分块处理询问，就可以解决问题。
+
+```C++
+#include<bits/stdc++.h>
+#define inf 0x3f3f3f3f
+#define int long long
+using namespace std;
+
+const int N=1e5+7;
+int is_pri[N],pri[N],g[N],mu[N],sum[N],d[N],t[N],cnt=0;
+
+void init(){
+	memset(is_pri,1,sizeof(is_pri));
+	mu[1]=1,d[1]=1,is_pri[1]=0;
+	for(int i=2;i<N;i++){
+		if(is_pri[i]){
+			pri[++cnt]=i;
+			mu[i]=-1;
+			d[i]=2;
+			t[i]=1;
+		}
+		for(int j=1;j<=cnt&&pri[j]*i<N;j++){
+			is_pri[pri[j]*i]=0; 
+			if(i%pri[j]){
+				mu[i*pri[j]]=-mu[i];
+				t[pri[j]*i]=1; //最小质因子出现的次数 
+				d[pri[j]*i]=d[i]<<1;//因子个数
+			}else{
+				t[pri[j]*i]=t[i]+1; 
+				d[pri[j]*i]=d[i]/(t[i]+1)*(t[i]+2);
+				mu[i*pri[j]]=0;
+				break;
+			}
+		}
+	}
+	for(int i=2;i<N;i++) d[i]+=d[i-1],mu[i]+=mu[i-1];
+}
+
+int solve(int n,int m){
+	int res=0;	
+	for(int l=1,r;l<=min(n,m);l=r+1){
+		r=min(n/(n/l),m/(m/l));
+		res+=(mu[r]-mu[l-1])*d[n/l]*d[m/l]; 
+	}
+	return res;
+}
+
+signed main(){
+	init();
+	int n,m,T;
+	cin>>T;
+	while(T--){
+		cin>>n>>m;
+		cout<<solve(n,m)<<"\n";
+	}
+	return 0;
+}
+```
+
+
+
+##### luoguP2257 YY的GCD
+
+$给定n,m，求1\le x\le N,1\le y\le M且gcd(x,y)为质数的(x,y)有多少对$
+$$
+Ans=\sum_{i=1}^n\sum_{j=1}^m[gcd(i,j)=prime]=\sum_{k\in prime}^n\sum_{i=1}^{[\frac{n}{k}]}\sum_{j=1}^{[\frac{m}{k}]}[gcd(i,j)=1]\\\sum_{k\in prime}^n\sum_{i=1}^{[\frac{n}{k}]}\sum_{j=1}^{[\frac{m}{k}]}\sum_{d|gcd(i,j)}\mu(d)=
+\sum_{k=1}^n\sum_{d=1}^{\frac{n}{k}}\mu(d)*[\frac{n}{kd}]*[\frac{m}{kd}](k\in prime)
+$$
+优化1：用T替换kd然后进行预处理，时间复杂度接近$O(n)$
+$$
+Ans=\sum_{T=1}^n[\frac{n}{T}]*[\frac{m}{T}]\sum_{k|T,k\in prime}\mu(\frac{T}{k})
+$$
+
+
+```C++
+#include<bits/stdc++.h>
+using namespace std;
+const int N=1e7+7;
+typedef long long ll;
+int mu[N],pri[N],cnt=0;
+ll f[N];
+bool is_pri[N];
+void init(){
+	mu[1]=1;is_pri[1]=1;
+	for(int i=2;i<N;i++){
+		if(!is_pri[i]){
+			pri[++cnt]=i;
+			mu[i]=-1;
+		}
+		for(int j=1;j<=cnt&&pri[j]*i<N;j++){
+			is_pri[i*pri[j]]=1;
+			if(i%pri[j]){
+				mu[i*pri[j]]=-mu[i];
+			}else{
+				break;
+			}
+		}
+	}
+	for(int i=1;i<=cnt;i++){
+		for(int j=1;pri[i]*j<N;j++){
+			f[j*pri[i]]+=mu[j];
+		}
+	}
+	for(int i=1;i<N;i++) f[i]+=f[i-1];
+}
+
+ll solve(int n,int m){
+	ll res=0;
+	for(int l=1,r;l<=n;l=r+1){
+		r=min(n/(n/l),m/(m/l));
+		res+=(ll)(f[r]-f[l-1])*(ll)(n/l)*(ll)(m/l);
+	}
+	return res;
+}
+
+signed main(){
+	init();
+	int n,m,t;
+	scanf("%d",&t);
+	while(t--){
+		scanf("%d%d",&n,&m);
+		if(n>m) swap(n,m);
+		cout<<solve(n,m)<<"\n";
+	}
+	return 0;
+}
+```
+
+
+
+### 参考资料
+
+OI-wiki
+
+《信息学奥赛之数学一本通》 林厚从
+
+https://blog.csdn.net/zsjzliziyang/article/details/107749294
+
+https://www.cnblogs.com/peng-ym/p/9446555.html
+
+https://www.cnblogs.com/peng-ym/p/8652288.htmlhttps://www.luogu.com.cn/blog/An-Amazing-Blog/mu-bi-wu-si-fan-yan-ji-ge-ji-miao-di-dong-xi

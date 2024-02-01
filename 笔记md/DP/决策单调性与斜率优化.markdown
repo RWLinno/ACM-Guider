@@ -1,0 +1,327 @@
+---
+title : 决策单调性与斜率优化
+date : 2021-10-8
+tags : ACM,动态规划
+author : Linno
+---
+![在这里插入图片描述](https://img-blog.csdnimg.cn/c35ea965eeaa43ed94060e997d537cea.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA57yE5ruF,size_20,color_FFFFFF,t_70,g_se,x_16#pic_center)
+
+
+
+# 前置知识
+
+### 四边形不等式
+
+定义
+$$
+若函数w(x,y)(\Z×\Z→\Z)对于∀a,b,c,d∈\Z,\\
+其中a≤b≤c≤d,\\都有w(a,d)+w(b,c)≥w(a,c)+w(b,d),\\则称函数w满足四边形不等式
+$$
+推论
+$$
+若函数w(x,y)(\Z×\Z→\Z)对于∀a,b∈\Z,其中a<b,\\
+都有w(a,b+1)+w(a+1,b)≥w(a,b)+w(a+1,b+1),\\
+则称函数w满足四边形不等式
+$$
+如果函数w满足四边形不等式，我们也称它满足凸完全单调性，或者说它是凸函数。
+
+
+
+# 决策单调性
+
+### 定义
+
+$$
+对于形如f[i]=min_{0≤j<i}(f[j]+w(j,i))的状态转移方程,\\
+记p[i]为f[i]取到最小值时j的值,p[i]即为f[i]的最优决策。\\
+如果p[i]在[1,n]上单调不减,则称f具有决策单调性。\\
+$$
+
+也可理解为$若w满足四边形不等式，则f具有决策单调性。$
+
+
+
+### 证明决策单调性
+
+得到dp转移方程后可以直观看出或者化简为带w(j,i)形式的函数，详见第一篇引用博客。
+
+
+
+### 步骤
+
+（1）更新，找到第一个能够涵盖i位置的决策点。
+
+（2）通过二分找决策点。
+
+（3）找到一个并没有被完全覆盖的队尾。
+
+
+
+# 斜率优化
+
+斜率优化是决策单调性的一种衍生算法，利用斜率使得决策优化能在线性时间内解决。
+$$
+将决策j看作平面上的一个点(x_j,y_j),对于i来说，
+\forall k<j,f_j+w(j,i)\leq f_k+f(k,i),当且仅当\frac{y_j-y_k}{x_j-x_k}\leq C_i\\
+其中x_j,y_j均在计算f_j后已知，C_i已知，实现这一算法的
+一般方法为维护所有决策点构成的凸包:\\
+\begin{cases}
+1.当x,C单调递增时可以利用单调队列直接维护凸包，询问时只需弹出队首不满足条件的元素即可。时间复杂度O(n)\\
+2.当x单调递增时，在凸包上二分寻找寻找第一个斜率不超过C_i的位置，时间复杂度O(nlogn)\\
+3.当x,C均不单调递增时可以使用CDQ分治，时间复杂度O(nlogn)\
+\end{cases}
+$$
+
+
+# 注意事项
+
+（1）写出dp转移方程后，先判断是否可以斜率优化（一般存在$f_i*f_j$项或者$\frac{Y(j)-Y(j')}{X(j)-X(j')}$）的形式）
+
+（2）斜率的计算会因为下取整出现误差，因此用slope函数要返回long double类型。
+
+（3）在比较两个斜率时，尽量写上等于，对于去重有奇效。（有重点时会导致斜率分母出锅）
+
+（4）斜率单调暴力移指针，斜率不单调二分找答案。
+
+
+
+# 例题
+
+##### [NOI2009] 诗人小G
+
+```C++
+#include<bits/stdc++.h>
+#define inf 1e18 
+#define int long long
+using namespace std;
+const int maxn=5e5+7;
+const int mod=1e9+7;
+
+int t,n,L,P;
+int sum[maxn],res[maxn];
+int q[maxn],stk[maxn]; //找到1~n最优决策的每一段 
+char str[maxn][35];
+long double dp[maxn];
+
+long double fpow(long double a,int b){
+	long double res=1;
+	while(b){
+		if(b&1) res=res*a;
+		a=a*a;
+		b>>=1;
+	}
+	return res;
+}
+
+inline long double calc(int j,int i){
+	return dp[j]+fpow(abs(sum[i]-sum[j]+(i-j-1)-L),P);
+}
+
+void init(){
+	for(int i=1;i<=n;i++){
+		dp[i]=inf;
+		res[i]=0;
+	}
+}
+
+inline int bs(int a,int b){ //bin_search二分找到第一个决策b比决策a更优的位置 
+	if(calc(a,n)<calc(b,n)) return n+1;
+	int l=b,r=n,mid;
+	int ans=-1;
+	while(l<=r){
+		mid=(l+r)>>1;
+		if(calc(b,mid)<=calc(a,mid)){
+			ans=mid;
+			r=mid-1;
+		}else l=mid+1;
+	}
+	return ans;
+}
+
+signed main(){
+	cin>>t;
+	while(t--){
+		cin>>n>>L>>P;
+		init();
+		for(int i=1;i<=n;i++){
+			cin>>str[i];
+			sum[i]=strlen(str[i])+sum[i-1];
+		}
+		int head=1,tail=0;
+		q[++tail]=0; 
+		dp[0]=0;
+		for(int i=1;i<=n;i++){
+			while(head<tail&&bs(q[head],q[head+1])<=i) head++; //使得head决策点的对应区域包含i
+			res[i]=q[head];
+			dp[i]=calc(q[head],i); 
+			while(head<tail&&bs(q[tail-1],q[tail])>=bs(q[tail],i))tail--;
+			//把以队尾决策点为决策点不如以i为决策点更优的位置出队 
+			q[++tail]=i; //并替换成i 
+		}
+		if(dp[n]>inf){
+			printf("Too hard to arrange\n"); 
+		}else{
+			printf("%lld\n",(long long)dp[n]);
+			int top=0;
+			for(int i=n;i;i=res[i]) stk[++top]=i;
+			stk[++top]=0;
+			for(int i=top-1;i>=1;i--){
+				int r=stk[i],l=stk[i+1]+1;
+				for(int j=l;j<r;j++) printf("%s ",str[j]);
+				printf("%s\n",str[r]);
+			}
+		}
+		printf("--------------------\n");
+	}
+	return 0;
+}
+```
+
+
+
+##### [HNOI2008]玩具装箱(斜率优化入门题)
+
+```C++
+#include<bits/stdc++.h>
+#define inf 0x3f3f3f3f
+#define int long long
+#define ld long double
+using namespace std;
+const int maxn=5e4+7;
+
+int read(){	int x=0,f=1;char ch=getchar();while(ch<'0'||ch>'9'){if(ch=='-') f=f*-1;ch=getchar();}while(ch>='0'&&ch<='9'){x=x*10+ch-'0';ch=getchar();}return x*f;}
+
+int n,L,head=1,tail=0,tmp;
+int Q[maxn],S[maxn],dp[maxn];
+
+inline int X(int x){return S[x];}
+
+inline int Y(int x){return dp[x]+(S[x]+L)*(S[x]+L);}
+
+inline ld slope(int a,int b){
+	return (ld)(Y(a)-Y(b))/(X(a)-X(b));
+}
+
+signed main(){
+	n=read();L=read();
+	++L;
+	memset(S,0,sizeof(S));
+	for(int i=1;i<=n;i++) S[i]=read()+S[i-1]+1; 
+	Q[++tail]=0;
+	for(int i=1;i<=n;i++){
+		while(head<tail&&slope(Q[head],Q[head+1])<=2*S[i]) ++head;
+		tmp=Q[head]; //决策点 
+		dp[i]=dp[tmp]+(S[i]-S[tmp]-L)*(S[i]-S[tmp]-L);
+		while(head<tail&&slope(Q[tail-1],Q[tail])>=slope(Q[tail-1],i)) --tail;
+		Q[++tail]=i;
+	}
+	printf("%lld",dp[n]);
+	return 0;
+}
+```
+
+
+
+##### [SDOI2012]任务安排
+
+```C++
+#include<bits/stdc++.h>
+#define inf 0x3f3f3f3f
+#define int long long
+#define db long double
+using namespace std;
+const int maxn=300007;
+const int mod=1e9+7;
+
+int read(){	int x=0,f=1;char ch=getchar();while(ch<'0'||ch>'9'){if(ch=='-') f=f*-1;ch=getchar();}while(ch>='0'&&ch<='9'){x=x*10+ch-'0';ch=getchar();}return x*f;}
+
+int n,S,t[maxn],c[maxn];
+int q[maxn],dp[maxn];
+int L,R;
+
+int solve(int val){
+	int l=L,r=R-1,ans=-1;
+	while(l<=r){
+		int m=(l+r)>>1;
+		if((dp[q[m+1]]-c[q[m+1]]*S-dp[q[m]]+c[q[m]]*S)>val*(c[q[m+1]]-c[q[m]]))ans=m,r=m-1;
+		else l=m+1;
+	}
+	if(ans==-1)return q[R];
+	return q[ans];
+}
+
+signed main(){
+	n=read();
+	S=read();
+	memset(dp,inf,sizeof(dp));
+	dp[0]=0;q[0]=0;
+	for(int i=1;i<=n;i++){
+		t[i]=read()+t[i-1];
+		c[i]=read()+c[i-1];
+	}
+	L=0,R=0;
+	for(int i=1;i<=n;i++){  
+		int j=solve((db)t[i]);
+		dp[i]=dp[j]+t[i]*(c[i]-c[j])+S*(c[n]-c[j]);
+		while(L<R&&(dp[q[R]]-c[q[R]]*S-dp[q[R-1]]+c[q[R-1]]*S)*(c[i]-c[q[R]])>=(dp[i]-c[i]*S-dp[q[R]]+c[q[R]]*S)*(c[q[R]]-c[q[R-1]])) R--;
+		q[++R]=i;
+	}
+	cout<<dp[n]<<"\n";
+	return 0;
+}
+```
+
+
+
+##### [CEOI2004]锯木厂选址
+
+```C++
+#include<cstdio>
+#include<cstring>
+#include<algorithm>
+#define db double
+using namespace std;
+const int M=3e4+1;
+int n;
+int q[M],fi,la,ans=2e9+1;
+int sum,s[M],d[M],w[M];
+db calc(int j,int k){return 1.0*(d[j]*s[j]-d[k]*s[k])/(s[j]-s[k]);}
+int count(int i,int j){return sum-d[j]*s[j]-d[i]*(s[i]-s[j]);}
+int main()
+{
+    scanf("%d",&n);
+    for(int i=1;i<=n;i++){scanf("%d%d",&w[i],&d[i]);}
+    for(int i=n;i>=1;i--) d[i]+=d[i+1];
+    for(int i=1;i<=n;i++) s[i]=s[i-1]+w[i],sum+=d[i]*w[i];
+    for(int i=1;i<=n;i++){
+        while(fi<la&&calc(q[fi],q[fi+1])>d[i]) ++fi;
+        ans=min(ans,count(i,q[fi]));
+        while(fi<la&&calc(q[la-1],q[la])<calc(q[la],i)) --la;
+        q[++la]=i;
+    }
+    printf("%d\n",ans);
+    return 0;
+}
+```
+
+
+
+### 待补的坑
+
+整体分治
+
+SMAWK算法
+
+区间dp的四边形不等式优化
+
+
+
+# 参考资料
+
+https://www.cnblogs.com/birchtree/p/12937975.html
+
+https://www.cnblogs.com/Xing-Ling/p/11210179.html
+
+https://alan-sp.github.io/post/jue-ce-dan-diao-xing-xue-xi-bi-ji/
+
+https://www.cnblogs.com/kebingyi/p/14157680.html
