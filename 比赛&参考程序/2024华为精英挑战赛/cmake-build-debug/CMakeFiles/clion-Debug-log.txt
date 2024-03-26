@@ -1,0 +1,6 @@
+"D:\JetBrains\CLion 2023.1\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_MAKE_PROGRAM=D:/JetBrains/CLion 2023.1/bin/ninja/win/x64/ninja.exe" -G Ninja -S C:\Users\lenovo\Desktop\华为精英挑战赛 -B C:\Users\lenovo\Desktop\华为精英挑战赛\cmake-build-debug
+CMake Error at CMakeLists.txt:2 (project):
+  project PROJECT called with incorrect number of arguments
+
+
+-- Configuring incomplete, errors occurred!

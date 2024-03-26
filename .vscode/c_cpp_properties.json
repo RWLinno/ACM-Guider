@@ -1,0 +1,16 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",        
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "D:\\Env\\MinGW64\\bin\\g++.exe",  //编译器路径
+            "cStandard": "c11",
+            "cppStandard": "c++11",
+            "intelliSenseMode": "clang-x64"
+        }
+    ],
+    "version": 4
+}
