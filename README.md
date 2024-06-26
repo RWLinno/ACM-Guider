@@ -11,8 +11,8 @@
 
 另外两个比较推荐的：
 
-- kuangbin
-- 繁凡
+- kuangbin [copy](https://github.com/RWLinno/ACM-Guider/blob/main/%E6%9D%BF%E5%AD%90/kuangbin%E7%9A%84ACM%E6%A8%A1%E6%9D%BF%EF%BC%88%E6%96%B0%EF%BC%89.pdf)
+- 繁凡[PDF-version-of-the-blog-fanfansann](https://github.com/fanfansann/PDF-version-of-the-blog-fanfansann)
 
 
 
